@@ -156,7 +156,6 @@ class ServerProxy(XMLServerProxy):
     def __notify(self, methodname, params, rpcid=None):
         request = dumps(params, methodname, encoding=self.__encoding,
                         rpcid=rpcid, version=self.__version, notify=True)
-        print request
         response = self.__run_request(request, notify=True)
         return
 
@@ -164,8 +163,6 @@ class ServerProxy(XMLServerProxy):
         global _last_request
         global _last_response
         _last_request = request
-        
-        print request
 
         response = self.__transport.request(
             self.__host,
