@@ -21,7 +21,13 @@ appropriately.
 >>> server = jsonrpclib.Server('http://localhost:8181')
 >>> server.add(5, 6)
 11
->>> jsonrpclib.__notify('add', (5, 6))
+>>> server._notify.add(5, 6)
+>>> batch = jsonrpclib.MultiCall(server)
+>>> batch.add(3, 50)
+>>> batch.add(2, 3)
+>>> batch._notify.add(3, 5)
+>>> batch()
+[53, 5]
 
 See http://code.google.com/p/jsonrpclib/ for more info.
 """
@@ -103,9 +109,9 @@ class Transport(XMLTransport):
                 response = file_h.read(1024)
             if not response:
                 break
+            response_body += response
             if self.verbose:
                 print 'body: %s' % response
-            response_body += response
         if response_body == '':
             # Notification
             return None
@@ -147,19 +153,21 @@ class ServerProxy(XMLServerProxy):
         self.__encoding = encoding
         self.__verbose = verbose
 
-    def __request(self, methodname, params, rpcid=None):
+    def _request(self, methodname, params, rpcid=None):
         request = dumps(params, methodname, encoding=self.__encoding,
                         rpcid=rpcid, version=self.__version)
-        response = self.__run_request(request)
+        response = self._run_request(request)
+        check_for_errors(response)
         return response['result']
-    
-    def __notify(self, methodname, params, rpcid=None):
+
+    def _request_notify(self, methodname, params, rpcid=None):
         request = dumps(params, methodname, encoding=self.__encoding,
                         rpcid=rpcid, version=self.__version, notify=True)
-        response = self.__run_request(request, notify=True)
+        response = self._run_request(request, notify=True)
+        check_for_errors(response)
         return
 
-    def __run_request(self, request, notify=None):
+    def _run_request(self, request, notify=None):
         global _last_request
         global _last_response
         _last_request = request
@@ -178,20 +186,20 @@ class ServerProxy(XMLServerProxy):
         # outputting the response appropriately?
         
         _last_response = response
-        if not response:
-            # notification, no result
-            return None
-        return check_for_errors(response)
+        return response
 
     def __getattr__(self, name):
-        # Same as original, just with new _Method and wrapper 
-        # for __notify
-        if name in ('__notify', '__run_request'):
-            wrapped_name = '_%s%s' % (self.__class__.__name__, name)
-            return getattr(self, wrapped_name)
-        return _Method(self.__request, name)
+        # Same as original, just with new _Method reference
+        return _Method(self._request, name)
+
+    @property
+    def _notify(self):
+        # Just like __getattr__, but with notify namespace.
+        return _Notify(self._request_notify)
+
 
 class _Method(XML_Method):
+    
     def __call__(self, *args, **kwargs):
         if len(args) > 0 and len(kwargs) > 0:
             raise ProtocolError('Cannot use both positional ' +
@@ -201,6 +209,13 @@ class _Method(XML_Method):
         else:
             return self.__send(self.__name, kwargs)
 
+class _Notify(object):
+    def __init__(self, request):
+        self._request = request
+
+    def __getattr__(self, name):
+        return _Method(self._request, name)
+        
 # Batch implementation
 
 class MultiCallMethod(object):
@@ -212,8 +227,8 @@ class MultiCallMethod(object):
 
     def __call__(self, *args, **kwargs):
         if len(kwargs) > 0 and len(args) > 0:
-            raise ProtocolError('A Job cannot have both positional ' +
-                                'and keyword arguments.')
+            raise ProtocolError('JSON-RPC does not support both ' +
+                                'positional and keyword arguments.')
         if len(kwargs) > 0:
             self.params = kwargs
         else:
@@ -226,40 +241,54 @@ class MultiCallMethod(object):
     def __repr__(self):
         return '%s' % self.request()
 
+class MultiCallNotify(object):
+    def __getattr__(self, name):
+        return MultiCallMethod(name, notify=True)
+
+class MultiCallIterator(object):
+    
+    def __init__(self, results):
+        self.results = results
+
+    def __iter__(self):
+        for i in range(0, len(self.results)):
+            yield self[i]
+        raise StopIteration
+
+    def __getitem__(self, i):
+        item = self.results[i]
+        check_for_errors(item)
+        return item['result']
+
+    def __len__(self):
+        return len(self.results)
+
 class MultiCall(object):
     
     def __init__(self, server):
         self.__server = server
         self.__job_list = []
 
-    def __run_request(self, request_body):
-        run_request = getattr(self.__server, '_ServerProxy__run_request')
-        return run_request(request_body)
-
-    def __request(self):
+    def _request(self):
         if len(self.__job_list) < 1:
             # Should we alert? This /is/ pretty obvious.
             return
         request_body = '[ %s ]' % ','.join([job.request() for
                                           job in self.__job_list])
-        responses = self.__run_request(request_body)
+        responses = self.__server._run_request(request_body)
         del self.__job_list[:]
-        return [ response['result'] for response in responses ]
+        return MultiCallIterator(responses)
 
-    def __notify(self, method, params=[]):
-        new_job = MultiCallMethod(method, notify=True)
-        new_job.params = params
-        self.__job_list.append(new_job)
-        
+    @property
+    def _notify(self):
+        return MultiCallNotify()
+
     def __getattr__(self, name):
-        if name in ('__run', '__notify'):
-            wrapped_name = '_%s%s' % (self.__class__.__name__, name)
-            return getattr(self, wrapped_name)
         new_job = MultiCallMethod(name)
         self.__job_list.append(new_job)
         return new_job
 
-    __call__ = __request
+    __call__ = _request
 
 # These lines conform to xmlrpclib's "compatibility" line. 
 # Not really sure if we should include these, but oh well.
@@ -393,19 +422,19 @@ def loads(data):
     return result
 
 def check_for_errors(result):
-    result_list = []
-    if not isbatch(result):
-        result_list.append(result)
-    else:
-        result_list = result
-    for entry in result_list:
-        if 'jsonrpc' in entry.keys() and float(entry['jsonrpc']) > 2.0:
-            raise NotImplementedError('JSON-RPC version not yet supported.')
-        if 'error' in entry.keys() and entry['error'] != None:
-            code = entry['error']['code']
-            message = entry['error']['message']
-            raise ProtocolError('ERROR %s: %s' % (code, message))
-    del result_list
+    if not result:
+        # Notification
+        return result
+    if type(result) is not types.DictType:
+        raise TypeError('Response is not a dict.')
+    if 'jsonrpc' in result.keys() and float(result['jsonrpc']) > 2.0:
+        raise NotImplementedError('JSON-RPC version not yet supported.')
+    if 'result' not in result.keys() and 'error' not in result.keys():
+        raise ValueError('Response does not have a result or error key.')
+    if 'error' in result.keys() and result['error'] != None:
+        code = result['error']['code']
+        message = result['error']['message']
+        raise ProtocolError('ERROR %s: %s' % (code, message))
     return result
 
 def isbatch(result):
