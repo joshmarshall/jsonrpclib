@@ -179,7 +179,7 @@ class ServerProxy(XMLServerProxy):
         # outputting the response appropriately?
         
         _last_response = response
-        return response
+        return check_for_errors(response)
 
     def __getattr__(self, name):
         # Same as original, just with new _Method and wrapper 
@@ -224,7 +224,7 @@ class Job(object):
     def __repr__(self):
         return '%s' % self.request()
 
-class BatchServerProxy(ServerProxy):
+class MultiCall(ServerProxy):
     
     def __init__(self, uri, *args, **kwargs):
         self.__job_list = []
@@ -256,31 +256,20 @@ class BatchServerProxy(ServerProxy):
         self.__job_list.append(new_job)
         return new_job
 
-    __run = __request
+    __call__ = __request
 
 # These lines conform to xmlrpclib's "compatibility" line. 
 # Not really sure if we should include these, but oh well.
 Server = ServerProxy
-BatchServer = BatchServerProxy
-
-def run(batch):
-    """
-    This method is just a caller for the __run() on the actual
-    BatchServer itself. Useful only for those who don't like
-    calling __ methods. :)
-    """
-    batch.__run()
-
-
 
 class Fault(dict):
     # JSON-RPC error class
     def __init__(self, code=-32000, message='Server error'):
-        self.code = code
-        self.message = message
+        self.faultCode = code
+        self.faultString = message
 
     def error(self):
-        return {'code':self.code, 'message':self.message}
+        return {'code':self.faultCode, 'message':self.faultString}
 
     def response(self, rpcid=None, version=None):
         global _version
@@ -371,7 +360,7 @@ def dumps(params=[], methodname=None, methodresponse=None,
     if not encoding:
         encoding = 'utf-8'
     if type(params) is Fault:
-        response = payload.error(params.code, params.message)
+        response = payload.error(params.faultCode, params.faultString)
         return jdumps(response, encoding=encoding)
     if methodresponse is True:
         if rpcid is None:
@@ -395,7 +384,9 @@ def loads(data):
     # if the above raises an error, the implementing server code 
     # should return something like the following:
     # { 'jsonrpc':'2.0', 'error': fault.error(), id: None }
-    
+    return result
+
+def check_for_errors(result):
     result_list = []
     if not isbatch(result):
         result_list.append(result)
