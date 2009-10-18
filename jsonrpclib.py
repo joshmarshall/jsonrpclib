@@ -165,6 +165,8 @@ class ServerProxy(XMLServerProxy):
         global _last_response
         _last_request = request
         
+        print request
+
         response = self.__transport.request(
             self.__host,
             self.__handler,
@@ -204,7 +206,7 @@ class _Method(XML_Method):
 
 # Batch implementation
 
-class Job(object):
+class MultiCallMethod(object):
     
     def __init__(self, method, notify=False):
         self.method = method
@@ -227,15 +229,15 @@ class Job(object):
     def __repr__(self):
         return '%s' % self.request()
 
-class MultiCall(ServerProxy):
+class MultiCall(object):
     
-    def __init__(self, uri, *args, **kwargs):
+    def __init__(self, server):
+        self.__server = server
         self.__job_list = []
-        ServerProxy.__init__(self, uri, *args, **kwargs)
 
     def __run_request(self, request_body):
-        run_request = getattr(ServerProxy, '_ServerProxy__run_request')
-        return run_request(self, request_body)
+        run_request = getattr(self.__server, '_ServerProxy__run_request')
+        return run_request(request_body)
 
     def __request(self):
         if len(self.__job_list) < 1:
@@ -248,7 +250,7 @@ class MultiCall(ServerProxy):
         return [ response['result'] for response in responses ]
 
     def __notify(self, method, params=[]):
-        new_job = Job(method, notify=True)
+        new_job = MultiCallMethod(method, notify=True)
         new_job.params = params
         self.__job_list.append(new_job)
         
@@ -256,7 +258,7 @@ class MultiCall(ServerProxy):
         if name in ('__run', '__notify'):
             wrapped_name = '_%s%s' % (self.__class__.__name__, name)
             return getattr(self, wrapped_name)
-        new_job = Job(name)
+        new_job = MultiCallMethod(name)
         self.__job_list.append(new_job)
         return new_job
 
@@ -266,7 +268,7 @@ class MultiCall(ServerProxy):
 # Not really sure if we should include these, but oh well.
 Server = ServerProxy
 
-class Fault(dict):
+class Fault(object):
     # JSON-RPC error class
     def __init__(self, code=-32000, message='Server error'):
         self.faultCode = code
@@ -279,8 +281,10 @@ class Fault(dict):
         global _version
         if not version:
             version = _version
-        return dumps(self, rpcid=None, methodresponse=True,
-                     version=version)
+        return dumps(self, rpcid=rpcid, version=version)
+
+    def __repr__(self):
+        return '<Fault %s: %s>' % (self.faultCode, self.faultString)
 
 def random_id(length=8):
     import string
@@ -343,7 +347,7 @@ def dumps(params=[], methodname=None, methodresponse=None,
     """
     global _version
     if not version:
-        verion = _version
+        version = _version
     valid_params = (types.TupleType, types.ListType, types.DictType)
     if methodname in types.StringTypes and \
             type(params) not in valid_params and \
@@ -354,11 +358,6 @@ def dumps(params=[], methodname=None, methodresponse=None,
         """
         raise TypeError('Params must be a dict, list, tuple or Fault ' +
                         'instance.')
-    if type(methodname) not in types.StringTypes and methodresponse != True:
-        raise ValueError('Method name must be a string, or methodresponse '+
-                         'must be set to True.')
-    if isinstance(params, Fault) and not methodresponse:
-        raise TypeError('You can only use a Fault for responses.')
     # Begin parsing object
     payload = Payload(rpcid=rpcid, version=version)
     if not encoding:
@@ -366,6 +365,9 @@ def dumps(params=[], methodname=None, methodresponse=None,
     if type(params) is Fault:
         response = payload.error(params.faultCode, params.faultString)
         return jdumps(response, encoding=encoding)
+    if type(methodname) not in types.StringTypes and methodresponse != True:
+        raise ValueError('Method name must be a string, or methodresponse '+
+                         'must be set to True.')
     if methodresponse is True:
         if rpcid is None:
             raise ValueError('A method response must have an rpcid.')
