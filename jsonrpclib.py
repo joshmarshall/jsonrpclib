@@ -106,6 +106,9 @@ class Transport(XMLTransport):
             if self.verbose:
                 print 'body: %s' % response
             response_body += response
+        if response_body == '':
+            # Notification
+            return None
         return_obj = loads(response_body)
         return return_obj
 
@@ -153,6 +156,7 @@ class ServerProxy(XMLServerProxy):
     def __notify(self, methodname, params, rpcid=None):
         request = dumps(params, methodname, encoding=self.__encoding,
                         rpcid=rpcid, version=self.__version, notify=True)
+        print request
         response = self.__run_request(request, notify=True)
         return
 
@@ -161,10 +165,6 @@ class ServerProxy(XMLServerProxy):
         global _last_response
         _last_request = request
         
-        if notify is True:
-            _last_response = None
-            return None
-
         response = self.__transport.request(
             self.__host,
             self.__handler,
@@ -179,6 +179,9 @@ class ServerProxy(XMLServerProxy):
         # outputting the response appropriately?
         
         _last_response = response
+        if not response:
+            # notification, no result
+            return None
         return check_for_errors(response)
 
     def __getattr__(self, name):
@@ -244,10 +247,11 @@ class MultiCall(ServerProxy):
         del self.__job_list[:]
         return [ response['result'] for response in responses ]
 
-    def __notify(self, method, params):
+    def __notify(self, method, params=[]):
         new_job = Job(method, notify=True)
+        new_job.params = params
         self.__job_list.append(new_job)
-
+        
     def __getattr__(self, name):
         if name in ('__run', '__notify'):
             wrapped_name = '_%s%s' % (self.__class__.__name__, name)
@@ -380,6 +384,9 @@ def loads(data):
     the request structure in Dict format instead of the method, params.
     It will return a list in the case of a batch request / response.
     """
+    if data == '':
+        # notification
+        return None
     result = jloads(data)
     # if the above raises an error, the implementing server code 
     # should return something like the following:
