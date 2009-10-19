@@ -1,5 +1,20 @@
 """
-JSONRPCLIB -- started by Josh Marshall
+Copyright 2009 Josh Marshall 
+Licensed under the Apache License, Version 2.0 (the "License"); 
+you may not use this file except in compliance with the License. 
+You may obtain a copy of the License at 
+
+   http://www.apache.org/licenses/LICENSE-2.0 
+
+Unless required by applicable law or agreed to in writing, software 
+distributed under the License is distributed on an "AS IS" BASIS, 
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+See the License for the specific language governing permissions and 
+limitations under the License. 
+
+============================
+JSONRPC Library (jsonrpclib)
+============================
 
 This library is a JSON-RPC v.2 (proposed) implementation which
 follows the xmlrpclib API for portability between clients. It
@@ -209,6 +224,11 @@ class _Method(XML_Method):
         else:
             return self.__send(self.__name, kwargs)
 
+    def __getattr__(self, name):
+        # Even though this is verbatim, it doesn't support
+        # keyword arguments unless we rewrite it.
+        return _Method(self.__send, "%s.%s" % (self.__name, name))
+
 class _Notify(object):
     def __init__(self, request):
         self._request = request
@@ -242,8 +262,14 @@ class MultiCallMethod(object):
         return '%s' % self.request()
 
 class MultiCallNotify(object):
+    
+    def __init__(self, multicall):
+        self.multicall = multicall
+
     def __getattr__(self, name):
-        return MultiCallMethod(name, notify=True)
+        new_job = MultiCallMethod(name, notify=True)
+        self.multicall._job_list.append(new_job)
+        return new_job
 
 class MultiCallIterator(object):
     
@@ -266,26 +292,26 @@ class MultiCallIterator(object):
 class MultiCall(object):
     
     def __init__(self, server):
-        self.__server = server
-        self.__job_list = []
+        self._server = server
+        self._job_list = []
 
     def _request(self):
-        if len(self.__job_list) < 1:
+        if len(self._job_list) < 1:
             # Should we alert? This /is/ pretty obvious.
             return
         request_body = '[ %s ]' % ','.join([job.request() for
-                                          job in self.__job_list])
-        responses = self.__server._run_request(request_body)
-        del self.__job_list[:]
+                                          job in self._job_list])
+        responses = self._server._run_request(request_body)
+        del self._job_list[:]
         return MultiCallIterator(responses)
 
     @property
     def _notify(self):
-        return MultiCallNotify()
+        return MultiCallNotify(self)
 
     def __getattr__(self, name):
         new_job = MultiCallMethod(name)
-        self.__job_list.append(new_job)
+        self._job_list.append(new_job)
         return new_job
 
     __call__ = _request
@@ -454,4 +480,11 @@ def isbatch(result):
         return False
     return True
 
-
+def isnotification(request):
+    if 'id' not in request.keys():
+        # 2.0 notification
+        return True
+    if request['id'] == None:
+        # 1.0 notification
+        return True
+    return False
