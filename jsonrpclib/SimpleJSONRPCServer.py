@@ -159,8 +159,15 @@ class SimpleJSONRPCServer(SocketServer.TCPServer,
                  logRequests=True, encoding=None, bind_and_activate=True):
         self.logRequests = logRequests
         SimpleJSONRPCDispatcher.__init__(self, encoding)
-        SocketServer.TCPServer.__init__(self, addr, requestHandler,
-                                        bind_and_activate)
+        # TCPServer.__init__ has an extra parameter on 2.6+, so
+        # check Python version and decide on how to call it
+        vi = sys.version_info
+        # if python 2.5 and lower
+        if vi[0] < 3 and vi[1] < 6:
+            SocketServer.TCPServer.__init__(self, addr, requestHandler)
+        else:
+            SocketServer.TCPServer.__init__(self, addr, requestHandler,
+                bind_and_activate)
         if fcntl is not None and hasattr(fcntl, 'FD_CLOEXEC'):
             flags = fcntl.fcntl(self.fileno(), fcntl.F_GETFD)
             flags |= fcntl.FD_CLOEXEC
