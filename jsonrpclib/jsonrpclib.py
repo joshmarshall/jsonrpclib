@@ -457,7 +457,7 @@ def check_for_errors(result):
     if 'error' in result.keys() and result['error'] != None:
         code = result['error']['code']
         message = result['error']['message']
-        raise ProtocolError('ERROR %s: %s' % (code, message))
+        raise ProtocolError((code, message))
     return result
 
 def isbatch(result):
