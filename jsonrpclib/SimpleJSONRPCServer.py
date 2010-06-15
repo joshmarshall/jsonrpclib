@@ -92,7 +92,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
                     return self.instance._dispatch(method, params)
                 else:
                     try:
-                        func = resolve_dotted_attribute(
+                        func = SimpleXMLRPCServer.resolve_dotted_attribute(
                             self.instance,
                             method,
                             True
