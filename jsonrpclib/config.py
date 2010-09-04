@@ -29,5 +29,10 @@ class Config(object):
     user_agent = 'jsonrpclib/0.1 (Python %s)' % \
         '.'.join([str(ver) for ver in sys.version_info[0:3]])
     # User agent to use for calls.
-
-config = Config
+    _instance = None
+    
+    @classmethod
+    def instance(cls):
+        if not cls._instance:
+            cls._instance = cls()
+        return cls._instance

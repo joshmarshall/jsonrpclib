@@ -8,20 +8,35 @@ import fcntl
 import sys
 
 def get_version(request):
-    if type(request) not in (types.ListType, types.DictType):
-        return None
-    if type(request) is types.ListType:
-        if len(request) == 0:
-            return None
-        if 'jsonrpc' not in request[0].keys():
-            return None
-        return '2.0'
     # must be a dict
     if 'jsonrpc' in request.keys():
         return 2.0
     if 'id' in request.keys():
         return 1.0
     return None
+    
+def validate_request(request):
+    if type(request) is not types.DictType:
+        fault = Fault(
+            -32600, 'Request must be {}, not %s.' % type(request)
+        )
+        return fault
+    rpcid = request.get('id', None)
+    version = get_version(request)
+    if not version:
+        fault = Fault(-32600, 'Request %s invalid.' % request, rpcid=rpcid)
+        return fault        
+    request.setdefault('params', [])
+    method = request.get('method', None)
+    params = request.get('params')
+    param_types = (types.ListType, types.DictType, types.TupleType)
+    if not method or type(method) not in types.StringTypes or \
+        type(params) not in param_types:
+        fault = Fault(
+            -32600, 'Invalid request parameters or method.', rpcid=rpcid
+        )
+        return fault
+    return True
 
 class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
 
@@ -34,34 +49,42 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
         response = None
         try:
             request = jsonrpclib.loads(data)
-        except:
-            fault = Fault(-32600, 'Request %s invalid.' % data)
+        except Exception, e:
+            fault = Fault(-32700, 'Request %s invalid. (%s)' % (data, e))
             response = fault.response()
             return response
-        version = get_version(request)
-        if not version:
-            fault = Fault(-32600, 'Request %s invalid.' % data)
-            response = fault.response()
-            return response
+        if not request:
+            fault = Fault(-32600, 'Request invalid -- no request data.')
+            return fault.response()
         if type(request) is types.ListType:
             # This SHOULD be a batch, by spec
             responses = []
             for req_entry in request:
+                result = validate_request(req_entry)
+                if type(result) is Fault:
+                    responses.append(result.response())
+                    continue
                 resp_entry = self._marshaled_single_dispatch(req_entry)
                 if resp_entry is not None:
                     responses.append(resp_entry)
-            response = '[%s]' % ','.join(responses)
-        else:
+            if len(responses) > 0:
+                response = '[%s]' % ','.join(responses)
+            else:
+                response = ''
+        else:    
+            result = validate_request(request)
+            if type(result) is Fault:
+                return result.response()
             response = self._marshaled_single_dispatch(request)
         return response
 
     def _marshaled_single_dispatch(self, request):
         # TODO - Use the multiprocessing and skip the response if
         # it is a notification
-        method = request['method']
-        params = request['params']
         # Put in support for custom dispatcher here
         # (See SimpleXMLRPCServer._marshaled_dispatch)
+        method = request.get('method')
+        params = request.get('params')
         try:
             response = self._dispatch(method, params)
         except:
