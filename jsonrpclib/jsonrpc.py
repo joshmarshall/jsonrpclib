@@ -151,7 +151,8 @@ class ServerProxy(XMLServerProxy):
         self.__host, self.__handler = urllib.splithost(uri)
         if not self.__handler:
             # Not sure if this is in the JSON spec?
-            self.__handler = '/RPC2'
+            #self.__handler = '/'
+            self.__handler == '/'
         if transport is None:
             if schema == 'https':
                 transport = SafeTransport()
