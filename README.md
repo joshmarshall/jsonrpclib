@@ -47,7 +47,6 @@ Client Usage
 
 This is (obviously) taken from a console session.
 
-<code>
 	>>> import jsonrpclib
 	>>> server = jsonrpclib.Server('http://localhost:8080')
 	>>> server.add(5,6)
@@ -70,13 +69,11 @@ This is (obviously) taken from a console session.
 	11
 	{'key': 'value'}
 	# Note that there are only two responses -- this is according to spec.
-</code>
 
 If you need 1.0 functionality, there are a bunch of places you can pass that 
 in, although the best is just to change the value on 
 jsonrpclib.config.version:
 
-<code>
 	>>> import jsonrpclib
 	>>> jsonrpclib.config.version
 	2.0
@@ -89,7 +86,6 @@ jsonrpclib.config.version:
 	>>> print jsonrpclib.history.response
 	{'id': 'thes7tl2', 'result': 17, 'error': None}
 	>>> 
-</code>
 
 The equivalent loads and dumps functions also exist, although with minor 
 modifications. The dumps arguments are almost identical, but it adds three 
@@ -105,7 +101,6 @@ SimpleJSONRPCServer
 -------------------
 This is identical in usage (or should be) to the SimpleXMLRPCServer in the default Python install. Some of the differences in features are that it obviously supports notification, batch calls, class translation (if left on), etc. Note: The import line is slightly different from the regular SimpleXMLRPCServer, since the SimpleJSONRPCServer is distributed within the jsonrpclib library.
 
-<code>
 	from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
 
 	server = SimpleJSONRPCServer(('localhost', 8080))
@@ -113,7 +108,6 @@ This is identical in usage (or should be) to the SimpleXMLRPCServer in the defau
 	server.register_function(lambda x,y: x+y, 'add')
 	server.register_function(lambda x: x, 'ping')
 	server.serve_forever()
-</code>
 
 Class Translation
 -----------------
@@ -137,7 +131,6 @@ behavior recursively goes through attributes and lists / dicts / tuples).
 
 [test_obj.py]
 
-<code>
 	# This object is /very/ simple, and the system will look through the 
 	# attributes and serialize what it can.
 	class TestObj(object):
@@ -152,11 +145,9 @@ behavior recursively goes through attributes and lists / dicts / tuples).
 	        self.args = args
 	    def _serialize(self):
 	        return (self.args, {'foo':self.foo,})
-</code>
 
 [usage]
 
-<code>
 	import jsonrpclib
 	import test_obj
 
@@ -172,7 +163,6 @@ behavior recursively goes through attributes and lists / dicts / tuples).
 	# {"jsonrpc": "2.0", "params": [{"__jsonclass__": ["test_obj.TestSerial", ["foo"]]}], "id": "a0l976iv", "method": "ping"}
 	print jsonrpclib.history.result
 	# {'jsonrpc': '2.0', 'result': <test_obj.TestSerial object at 0x2744590>, 'id': 'a0l976iv'}
-</code>
 	
 To turn on this behaviour, just set jsonrpclib.config.use_jsonclass to True. 
 If you want to use a different method for serialization, just set 
