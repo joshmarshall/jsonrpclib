@@ -4,8 +4,12 @@ import SimpleXMLRPCServer
 import SocketServer
 import types
 import traceback
-import fcntl
 import sys
+try:
+    import fcntl
+except ImportError:
+    # For Windows
+    fcntl = None
 
 def get_version(request):
     # must be a dict
@@ -173,8 +177,7 @@ class SimpleJSONRPCRequestHandler(
         self.wfile.flush()
         self.connection.shutdown(1)
 
-class SimpleJSONRPCServer(SocketServer.TCPServer,
-                         SimpleJSONRPCDispatcher):
+class SimpleJSONRPCServer(SocketServer.TCPServer, SimpleJSONRPCDispatcher):
 
     allow_reuse_address = True
 
@@ -209,10 +212,3 @@ class CGIJSONRPCRequestHandler(SimpleJSONRPCDispatcher):
         sys.stdout.write(response)
 
     handle_xmlrpc = handle_jsonrpc
-
-if __name__ == '__main__':
-    print 'Running JSON-RPC server on port 8000'
-    server = SimpleJSONRPCServer(("localhost", 8000))
-    server.register_function(pow)
-    server.register_function(lambda x,y: x+y, 'add')
-    server.serve_forever()
