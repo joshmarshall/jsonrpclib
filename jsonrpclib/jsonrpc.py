@@ -113,25 +113,35 @@ class Transport(XMLTransport):
         if request_body:
             connection.send(request_body)
 
-    def _parse_response(self, file_h, sock):
-        response_body = ''
-        while 1:
-            if sock:
-                response = sock.recv(1024)
-            else:
-                response = file_h.read(1024)
-            if not response:
-                break
-            response_body += response
-            if self.verbose:
-                print 'body: %s' % response
-        return response_body
+    def getparser(self):
+        target = JSONTarget()
+        return JSONParser(target), target
+
+class JSONParser(object):
+    def __init__(self, target):
+        self.target = target
+
+    def feed(self, data):
+        self.target.feed(data)
+
+    def close(self):
+        pass
+
+class JSONTarget(object):
+    def __init__(self):
+        self.data = []
+
+    def feed(self, data):
+        self.data.append(data)
+
+    def close(self):
+        return ''.join(self.data)
 
 class SafeTransport(XMLSafeTransport):
     """ Just extends for HTTPS calls """
     user_agent = Transport.user_agent
     send_content = Transport.send_content
-    _parse_response = Transport._parse_response
+    getparser = Transport.getparser
 
 class ServerProxy(XMLServerProxy):
     """
