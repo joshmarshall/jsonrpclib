@@ -102,9 +102,11 @@ def jloads(json_string):
 class ProtocolError(Exception):
     pass
 
-class Transport(XMLTransport):
+class TransportMixIn(object):
     """ Just extends the XMLRPC transport where necessary. """
     user_agent = config.user_agent
+    # for Python 2.7 support
+    _connection = None
 
     def send_content(self, connection, request_body):
         connection.putheader("Content-Type", "application/json-rpc")
@@ -137,12 +139,12 @@ class JSONTarget(object):
     def close(self):
         return ''.join(self.data)
 
-class SafeTransport(XMLSafeTransport):
-    """ Just extends for HTTPS calls """
-    user_agent = Transport.user_agent
-    send_content = Transport.send_content
-    getparser = Transport.getparser
+class Transport(TransportMixIn, XMLTransport):
+    pass
 
+class SafeTransport(TransportMixIn, XMLSafeTransport):
+    pass
+    
 class ServerProxy(XMLServerProxy):
     """
     Unfortunately, much more of this class has to be copied since
