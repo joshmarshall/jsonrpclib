@@ -345,6 +345,18 @@ class InternalTests(unittest.TestCase):
                 self.assertRaises(raises[i], func)
         
         
+class UnixSocketInternalTests(InternalTests):
+    """
+    These tests run the same internal communication tests, but over a
+    Unix socket instead of a TCP socket.
+    """
+    def setUp(self):
+        self.port = "/tmp/jsonrpc%d.sock" % (PORTS.pop())
+        self.server = server_set_up(addr=self.port, address_family=socket.AF_UNIX)
+
+    def get_client(self):
+        return Server('unix:%s' % self.port)
+
 """ Test Methods """
 def subtract(minuend, subtrahend):
     """ Using the keywords from the JSON-RPC v2 doc """
