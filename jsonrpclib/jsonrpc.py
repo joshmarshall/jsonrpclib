@@ -54,6 +54,8 @@ from xmlrpclib import SafeTransport as XMLSafeTransport
 from xmlrpclib import ServerProxy as XMLServerProxy
 from xmlrpclib import _Method as XML_Method
 import time
+import string
+import random
 
 # Library includes
 import jsonrpclib
@@ -66,18 +68,19 @@ json = None
 try:
     import cjson
 except ImportError:
-    pass
-if not cjson:
     try:
         import json
     except ImportError:
-        pass
-if not cjson and not json: 
-    try:
-        import simplejson as json
-    except ImportError:
-        raise ImportError('You must have the cjson, json, or simplejson ' +
-                          'module(s) available.')
+        try:
+            import simplejson as json
+        except ImportError:
+            raise ImportError(
+                'You must have the cjson, json, or simplejson ' +
+                'module(s) available.'
+            )
+
+IDCHARS = string.ascii_lowercase+string.digits
+
 
 #JSON Abstractions
 
@@ -97,7 +100,7 @@ def jloads(json_string):
         return json.loads(json_string)
 
 
-# XMLRPClib re-implemntations
+# XMLRPClib re-implementations
 
 class ProtocolError(Exception):
     pass
@@ -359,13 +362,9 @@ class Fault(object):
         return '<Fault %s: %s>' % (self.faultCode, self.faultString)
 
 def random_id(length=8):
-    import string
-    import random
-    random.seed()
-    choices = string.lowercase+string.digits
     return_id = ''
     for i in range(length):
-        return_id += random.choice(choices)
+        return_id += random.choice(IDCHARS)
     return return_id
 
 class Payload(dict):
