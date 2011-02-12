@@ -18,7 +18,7 @@ import distutils.core
 
 distutils.core.setup(
     name = "jsonrpclib",
-    version = "0.12",
+    version = "0.13",
     packages = ["jsonrpclib"],
     author = "Josh Marshall",
     author_email = "catchjosh@gmail.com",
