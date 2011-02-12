@@ -22,6 +22,7 @@ TODO:
 from jsonrpclib import Server, MultiCall, history, config, ProtocolError
 from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
 from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCRequestHandler
+import socket
 import unittest
 import os
 try:
@@ -40,7 +41,7 @@ class TestCompatibility(unittest.TestCase):
     
     def setUp(self):
         self.port = PORTS.pop()
-        self.server = server_set_up(port=self.port)
+        self.server = server_set_up(addr=('', self.port))
         self.client = Server('http://localhost:%d' % self.port)
     
     # v1 tests forthcoming
@@ -261,7 +262,7 @@ class InternalTests(unittest.TestCase):
     
     def setUp(self):
         self.port = PORTS.pop()
-        self.server = server_set_up(port=self.port)
+        self.server = server_set_up(addr=('', self.port))
     
     def get_client(self):
         return Server('http://localhost:%d' % self.port)
@@ -344,6 +345,18 @@ class InternalTests(unittest.TestCase):
                 self.assertRaises(raises[i], func)
         
         
+class UnixSocketInternalTests(InternalTests):
+    """
+    These tests run the same internal communication tests, but over a
+    Unix socket instead of a TCP socket.
+    """
+    def setUp(self):
+        self.port = "/tmp/jsonrpc%d.sock" % (PORTS.pop())
+        self.server = server_set_up(addr=self.port, address_family=socket.AF_UNIX)
+
+    def get_client(self):
+        return Server('unix:%s' % self.port)
+
 """ Test Methods """
 def subtract(minuend, subtrahend):
     """ Using the keywords from the JSON-RPC v2 doc """
@@ -367,14 +380,14 @@ def get_data():
 def ping():
     return True
         
-def server_set_up(port):
+def server_set_up(addr, address_family=socket.AF_INET):
     # Not sure this is a good idea to spin up a new server thread
     # for each test... but it seems to work fine.
     def log_request(self, *args, **kwargs):
         """ Making the server output 'quiet' """
         pass
     SimpleJSONRPCRequestHandler.log_request = log_request
-    server = SimpleJSONRPCServer(('', port))
+    server = SimpleJSONRPCServer(addr, address_family=address_family)
     server.register_function(summation, 'sum')
     server.register_function(summation, 'notify_sum')
     server.register_function(notify_hello)

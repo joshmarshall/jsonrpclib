@@ -2,6 +2,8 @@ import jsonrpclib
 from jsonrpclib import Fault
 import SimpleXMLRPCServer
 import SocketServer
+import socket
+import os
 import types
 import traceback
 import sys
@@ -182,12 +184,22 @@ class SimpleJSONRPCServer(SocketServer.TCPServer, SimpleJSONRPCDispatcher):
     allow_reuse_address = True
 
     def __init__(self, addr, requestHandler=SimpleJSONRPCRequestHandler,
-                 logRequests=True, encoding=None, bind_and_activate=True):
+                 logRequests=True, encoding=None, bind_and_activate=True,
+                 address_family=socket.AF_INET):
         self.logRequests = logRequests
         SimpleJSONRPCDispatcher.__init__(self, encoding)
         # TCPServer.__init__ has an extra parameter on 2.6+, so
         # check Python version and decide on how to call it
         vi = sys.version_info
+        self.address_family = address_family
+        if address_family == socket.AF_UNIX:
+            # Unix sockets can't be bound if they already exist in the
+            # filesystem. The convention of e.g. X11 is to unlink
+            # before binding again.
+            try:
+                os.unlink(addr)
+            except OSError:
+                pass
         # if python 2.5 and lower
         if vi[0] < 3 and vi[1] < 6:
             SocketServer.TCPServer.__init__(self, addr, requestHandler)

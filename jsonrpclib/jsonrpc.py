@@ -147,6 +147,23 @@ class Transport(TransportMixIn, XMLTransport):
 
 class SafeTransport(TransportMixIn, XMLSafeTransport):
     pass
+
+from httplib import HTTP, HTTPConnection
+from socket import socket, AF_UNIX, SOCK_STREAM
+class UnixHTTPConnection(HTTPConnection):
+    def connect(self):
+        self.sock = socket(AF_UNIX, SOCK_STREAM)
+        self.sock.connect(self.host)
+
+class UnixHTTP(HTTP):
+    _connection_class = UnixHTTPConnection
+
+class UnixTransport(TransportMixIn, XMLTransport):
+    def make_connection(self, host):
+        import httplib
+        host, extra_headers, x509 = self.get_host_info(host)
+        return UnixHTTP(host)
+
     
 class ServerProxy(XMLServerProxy):
     """
@@ -161,15 +178,21 @@ class ServerProxy(XMLServerProxy):
             version = config.version
         self.__version = version
         schema, uri = urllib.splittype(uri)
-        if schema not in ('http', 'https'):
+        if schema not in ('http', 'https', 'unix'):
             raise IOError('Unsupported JSON-RPC protocol.')
-        self.__host, self.__handler = urllib.splithost(uri)
-        if not self.__handler:
-            # Not sure if this is in the JSON spec?
-            #self.__handler = '/'
-            self.__handler == '/'
+        if schema == 'unix':
+            self.__host = uri
+            self.__handler = '/'
+        else:
+            self.__host, self.__handler = urllib.splithost(uri)
+            if not self.__handler:
+                # Not sure if this is in the JSON spec?
+                #self.__handler = '/'
+                self.__handler == '/'
         if transport is None:
-            if schema == 'https':
+            if schema == 'unix':
+                transport = UnixTransport()
+            elif schema == 'https':
                 transport = SafeTransport()
             else:
                 transport = Transport()
