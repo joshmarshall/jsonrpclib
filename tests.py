@@ -20,11 +20,14 @@ TODO:
 """
 
 from jsonrpclib import Server, MultiCall, history, config, ProtocolError
+from jsonrpclib import jsonrpc
 from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
 from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCRequestHandler
 import socket
+import tempfile
 import unittest
 import os
+import time
 try:
     import json
 except ImportError:
@@ -345,17 +348,60 @@ class InternalTests(unittest.TestCase):
                 self.assertRaises(raises[i], func)
         
         
-class UnixSocketInternalTests(InternalTests):
-    """
-    These tests run the same internal communication tests, but over a
-    Unix socket instead of a TCP socket.
-    """
-    def setUp(self):
-        self.port = "/tmp/jsonrpc%d.sock" % (PORTS.pop())
-        self.server = server_set_up(addr=self.port, address_family=socket.AF_UNIX)
+if jsonrpc.USE_UNIX_SOCKETS:
+    # We won't do these tests unless Unix Sockets are supported
+    
+    class UnixSocketInternalTests(InternalTests):
+        """
+        These tests run the same internal communication tests, 
+        but over a Unix socket instead of a TCP socket.
+        """
+        def setUp(self):
+            suffix = "%d.sock" % PORTS.pop()
+            
+            # Open to safer, alternative processes 
+            # for getting a temp file name...
+            temp = tempfile.NamedTemporaryFile(
+                suffix=suffix
+            )
+            self.port = temp.name
+            temp.close()
+            
+            self.server = server_set_up(
+                addr=self.port, 
+                address_family=socket.AF_UNIX
+            )
 
-    def get_client(self):
-        return Server('unix:%s' % self.port)
+        def get_client(self):
+            return Server('unix:/%s' % self.port)
+            
+        def tearDown(self):
+            """ Removes the tempory socket file """
+            os.unlink(self.port)
+            
+class UnixSocketErrorTests(unittest.TestCase):
+    """ 
+    Simply tests that the proper exceptions fire if 
+    Unix sockets are attempted to be used on a platform
+    that doesn't support them.
+    """
+    
+    def setUp(self):
+        self.original_value = jsonrpc.USE_UNIX_SOCKETS
+        if (jsonrpc.USE_UNIX_SOCKETS):
+            jsonrpc.USE_UNIX_SOCKETS = False
+        
+    def test_client(self):
+        address = "unix://shouldnt/work.sock"
+        self.assertRaises(
+            jsonrpc.UnixSocketMissing,
+            Server,
+            address
+        )
+        
+    def tearDown(self):
+        jsonrpc.USE_UNIX_SOCKETS = self.original_value
+        
 
 """ Test Methods """
 def subtract(minuend, subtrahend):
@@ -403,5 +449,8 @@ def server_set_up(addr, address_family=socket.AF_INET):
     return server_proc
 
 if __name__ == '__main__':
+    print "==============================================================="
+    print "  NOTE: There may be threading exceptions after tests finish.  "
+    print "==============================================================="
+    time.sleep(2)
     unittest.main()
-    

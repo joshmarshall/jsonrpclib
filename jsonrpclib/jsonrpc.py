@@ -81,6 +81,12 @@ except ImportError:
 
 IDCHARS = string.ascii_lowercase+string.digits
 
+class UnixSocketMissing(Exception):
+    """ 
+    Just a properly named Exception if Unix Sockets usage is 
+    attempted on a platform that doesn't support them (Windows)
+    """
+    pass
 
 #JSON Abstractions
 
@@ -147,22 +153,32 @@ class Transport(TransportMixIn, XMLTransport):
 
 class SafeTransport(TransportMixIn, XMLSafeTransport):
     pass
-
 from httplib import HTTP, HTTPConnection
-from socket import socket, AF_UNIX, SOCK_STREAM
-class UnixHTTPConnection(HTTPConnection):
-    def connect(self):
-        self.sock = socket(AF_UNIX, SOCK_STREAM)
-        self.sock.connect(self.host)
+from socket import socket
 
-class UnixHTTP(HTTP):
-    _connection_class = UnixHTTPConnection
+USE_UNIX_SOCKETS = False
 
-class UnixTransport(TransportMixIn, XMLTransport):
-    def make_connection(self, host):
-        import httplib
-        host, extra_headers, x509 = self.get_host_info(host)
-        return UnixHTTP(host)
+try: 
+    from socket import AF_UNIX, SOCK_STREAM
+    USE_UNIX_SOCKETS = True
+except ImportError:
+    pass
+    
+if (USE_UNIX_SOCKETS):
+    
+    class UnixHTTPConnection(HTTPConnection):
+        def connect(self):
+            self.sock = socket(AF_UNIX, SOCK_STREAM)
+            self.sock.connect(self.host)
+
+    class UnixHTTP(HTTP):
+        _connection_class = UnixHTTPConnection
+
+    class UnixTransport(TransportMixIn, XMLTransport):
+        def make_connection(self, host):
+            import httplib
+            host, extra_headers, x509 = self.get_host_info(host)
+            return UnixHTTP(host)
 
     
 class ServerProxy(XMLServerProxy):
@@ -181,6 +197,9 @@ class ServerProxy(XMLServerProxy):
         if schema not in ('http', 'https', 'unix'):
             raise IOError('Unsupported JSON-RPC protocol.')
         if schema == 'unix':
+            if not USE_UNIX_SOCKETS:
+                # Don't like the "generic" Exception...
+                raise UnixSocketMissing("Unix sockets not available.")
             self.__host = uri
             self.__handler = '/'
         else:
