@@ -17,12 +17,13 @@ import distutils.core
 
 distutils.core.setup(
     name = "jsonrpclib",
-    version = "0.13",
+    version = "0.1.3",
     packages = ["jsonrpclib"],
     author = "Josh Marshall",
     author_email = "catchjosh@gmail.com",
-    url = "http://code.google.com/p/jsonrpclib/",
+    url = "http://github.com/joshmarshall/jsonrpclib/",
     license = "http://www.apache.org/licenses/LICENSE-2.0",
     description = "This project is an implementation of the JSON-RPC v2.0 " +
                   "specification (backwards-compatible) as a client library.",
+    long_description = open("README.md").read()
 )

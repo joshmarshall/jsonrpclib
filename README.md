@@ -42,6 +42,22 @@ should already have one. Keep in mind that cjson is supposed to be the
 quickest, I believe, so if you are going for full-on optimization you may 
 want to pick it up.
 
+Installation
+------------
+You can install this from PyPI with one of the following commands (sudo
+may be required):
+
+	easy_install jsonrpclib
+	pip install jsonrpclib
+
+Alternatively, you can download the source from the github repository
+at http://github.com/joshmarshall/jsonrpclib and manually install it
+with the following commands:
+
+	git clone git://github.com/joshmarshall/jsonrpclib.git
+	cd jsonrpclib
+	python setup.py install
+
 Client Usage
 ------------
 
