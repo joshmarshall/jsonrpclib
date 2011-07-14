@@ -476,6 +476,19 @@ class HeadersTests(unittest.TestCase):
         self.assertTrue('x-my-header' in headers)
         self.assertEqual(headers['x-my-header'], 'Test')
 
+    def test_should_add_additional_headers_to_notifications(self):
+        # given
+        client = Server('http://localhost:%d' % self.port, verbose=1,
+                    headers={'X-My-Header' : 'Test'})
+
+        # when
+        with self.captured_headers() as headers:
+            client._notify.ping()
+
+        # then
+        self.assertTrue('x-my-header' in headers)
+        self.assertEqual(headers['x-my-header'], 'Test')
+
     def test_should_override_headers(self):
         # given
         client = Server('http://localhost:%d' % self.port, verbose=1,
