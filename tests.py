@@ -570,6 +570,30 @@ class HeadersTests(unittest.TestCase):
         self.assertTrue('x-test' in headers)
         self.assertEqual(headers['x-test'], 'Global')
 
+    def test_should_allow_to_nest_additional_header_blocks(self):
+        # given
+        client = Server('http://localhost:%d' % self.port, verbose=1)
+
+        # when
+        with client._additional_headers({'X-Level-1' : '1'}) as cl_level1:
+            with self.captured_headers() as headers1:
+                response = cl_level1.ping()
+                self.assertTrue(response)
+
+            with cl_level1._additional_headers({'X-Level-2' : '2'}) as cl:
+                with self.captured_headers() as headers2:
+                    response = cl.ping()
+                    self.assertTrue(response)
+
+        # then
+        self.assertTrue('x-level-1' in headers1)
+        self.assertEqual(headers1['x-level-1'], '1')
+
+        self.assertTrue('x-level-1' in headers2)
+        self.assertEqual(headers1['x-level-1'], '1')
+        self.assertTrue('x-level-2' in headers2)
+        self.assertEqual(headers2['x-level-2'], '2')
+
 """ Test Methods """
 def subtract(minuend, subtrahend):
     """ Using the keywords from the JSON-RPC v2 doc """
