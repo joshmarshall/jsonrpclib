@@ -1,16 +1,16 @@
 """
 The tests in this file compare the request and response objects
 to the JSON-RPC 2.0 specification document, as well as testing
-several internal components of the jsonrpclib library. Run this 
+several internal components of the jsonrpclib library. Run this
 module without any parameters to run the tests.
 
-Currently, this is not easily tested with a framework like 
+Currently, this is not easily tested with a framework like
 nosetests because we spin up a daemon thread running the
 the Server, and nosetests (at least in my tests) does not
 ever "kill" the thread.
 
 If you are testing jsonrpclib and the module doesn't return to
-the command prompt after running the tests, you can hit 
+the command prompt after running the tests, you can hit
 "Ctrl-C" (or "Ctrl-Break" on Windows) and that should kill it.
 
 TODO:
@@ -27,7 +27,13 @@ import socket
 import tempfile
 import unittest
 import os
+import re
 import time
+
+import contextlib
+import StringIO
+import string, sys
+
 try:
     import json
 except ImportError:
@@ -37,18 +43,18 @@ from threading import Thread
 PORTS = range(8000, 8999)
 
 class TestCompatibility(unittest.TestCase):
-    
+
     client = None
     port = None
     server = None
-    
+
     def setUp(self):
         self.port = PORTS.pop()
         self.server = server_set_up(addr=('', self.port))
         self.client = Server('http://localhost:%d' % self.port)
-    
+
     # v1 tests forthcoming
-    
+
     # Version 2.0 Tests
     def test_positional(self):
         """ Positional arguments in a single call """
@@ -59,7 +65,7 @@ class TestCompatibility(unittest.TestCase):
         request = json.loads(history.request)
         response = json.loads(history.response)
         verify_request = {
-            "jsonrpc": "2.0", "method": "subtract", 
+            "jsonrpc": "2.0", "method": "subtract",
             "params": [42, 23], "id": request['id']
         }
         verify_response = {
@@ -67,7 +73,7 @@ class TestCompatibility(unittest.TestCase):
         }
         self.assertTrue(request == verify_request)
         self.assertTrue(response == verify_response)
-        
+
     def test_named(self):
         """ Named arguments in a single call """
         result = self.client.subtract(subtrahend=23, minuend=42)
@@ -77,8 +83,8 @@ class TestCompatibility(unittest.TestCase):
         request = json.loads(history.request)
         response = json.loads(history.response)
         verify_request = {
-            "jsonrpc": "2.0", "method": "subtract", 
-            "params": {"subtrahend": 23, "minuend": 42}, 
+            "jsonrpc": "2.0", "method": "subtract",
+            "params": {"subtrahend": 23, "minuend": 42},
             "id": request['id']
         }
         verify_response = {
@@ -86,7 +92,7 @@ class TestCompatibility(unittest.TestCase):
         }
         self.assertTrue(request == verify_request)
         self.assertTrue(response == verify_response)
-        
+
     def test_notification(self):
         """ Testing a notification (response should be null) """
         result = self.client._notify.update(1, 2, 3, 4, 5)
@@ -99,7 +105,7 @@ class TestCompatibility(unittest.TestCase):
         verify_response = ''
         self.assertTrue(request == verify_request)
         self.assertTrue(response == verify_response)
-        
+
     def test_non_existent_method(self):
         self.assertRaises(ProtocolError, self.client.foobar)
         request = json.loads(history.request)
@@ -108,14 +114,14 @@ class TestCompatibility(unittest.TestCase):
             "jsonrpc": "2.0", "method": "foobar", "id": request['id']
         }
         verify_response = {
-            "jsonrpc": "2.0", 
-            "error": 
-                {"code": -32601, "message": response['error']['message']}, 
+            "jsonrpc": "2.0",
+            "error":
+                {"code": -32601, "message": response['error']['message']},
             "id": request['id']
         }
         self.assertTrue(request == verify_request)
         self.assertTrue(response == verify_response)
-        
+
     def test_invalid_json(self):
         invalid_json = '{"jsonrpc": "2.0", "method": "foobar, '+ \
             '"params": "bar", "baz]'
@@ -127,7 +133,7 @@ class TestCompatibility(unittest.TestCase):
         )
         verify_response['error']['message'] = response['error']['message']
         self.assertTrue(response == verify_response)
-        
+
     def test_invalid_request(self):
         invalid_request = '{"jsonrpc": "2.0", "method": 1, "params": "bar"}'
         response = self.client._run_request(invalid_request)
@@ -138,7 +144,7 @@ class TestCompatibility(unittest.TestCase):
         )
         verify_response['error']['message'] = response['error']['message']
         self.assertTrue(response == verify_response)
-        
+
     def test_batch_invalid_json(self):
         invalid_request = '[ {"jsonrpc": "2.0", "method": "sum", '+ \
             '"params": [1,2,4], "id": "1"},{"jsonrpc": "2.0", "method" ]'
@@ -150,7 +156,7 @@ class TestCompatibility(unittest.TestCase):
         )
         verify_response['error']['message'] = response['error']['message']
         self.assertTrue(response == verify_response)
-        
+
     def test_empty_array(self):
         invalid_request = '[]'
         response = self.client._run_request(invalid_request)
@@ -161,7 +167,7 @@ class TestCompatibility(unittest.TestCase):
         )
         verify_response['error']['message'] = response['error']['message']
         self.assertTrue(response == verify_response)
-        
+
     def test_nonempty_array(self):
         invalid_request = '[1,2]'
         request_obj = json.loads(invalid_request)
@@ -175,7 +181,7 @@ class TestCompatibility(unittest.TestCase):
             )
             verify_resp['error']['message'] = resp['error']['message']
             self.assertTrue(resp == verify_resp)
-        
+
     def test_batch(self):
         multicall = MultiCall(self.client)
         multicall.sum(1,2,4)
@@ -188,16 +194,16 @@ class TestCompatibility(unittest.TestCase):
         json_requests = '[%s]' % ','.join(job_requests)
         requests = json.loads(json_requests)
         responses = self.client._run_request(json_requests)
-        
+
         verify_requests = json.loads("""[
             {"jsonrpc": "2.0", "method": "sum", "params": [1,2,4], "id": "1"},
             {"jsonrpc": "2.0", "method": "notify_hello", "params": [7]},
             {"jsonrpc": "2.0", "method": "subtract", "params": [42,23], "id": "2"},
             {"foo": "boo"},
             {"jsonrpc": "2.0", "method": "foo.get", "params": {"name": "myself"}, "id": "5"},
-            {"jsonrpc": "2.0", "method": "get_data", "id": "9"} 
+            {"jsonrpc": "2.0", "method": "get_data", "id": "9"}
         ]""")
-            
+
         # Thankfully, these are in order so testing is pretty simple.
         verify_responses = json.loads("""[
             {"jsonrpc": "2.0", "result": 7, "id": "1"},
@@ -206,13 +212,13 @@ class TestCompatibility(unittest.TestCase):
             {"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found."}, "id": "5"},
             {"jsonrpc": "2.0", "result": ["hello", 5], "id": "9"}
         ]""")
-        
+
         self.assertTrue(len(requests) == len(verify_requests))
         self.assertTrue(len(responses) == len(verify_responses))
-        
+
         responses_by_id = {}
         response_i = 0
-        
+
         for i in range(len(requests)):
             verify_request = verify_requests[i]
             request = requests[i]
@@ -227,15 +233,15 @@ class TestCompatibility(unittest.TestCase):
                 response_i += 1
                 response = verify_response
             self.assertTrue(request == verify_request)
-            
+
         for response in responses:
             verify_response = responses_by_id.get(response.get('id'))
             if verify_response.has_key('error'):
                 verify_response['error']['message'] = \
                     response['error']['message']
             self.assertTrue(response == verify_response)
-        
-    def test_batch_notifications(self):    
+
+    def test_batch_notifications(self):
         multicall = MultiCall(self.client)
         multicall._notify.notify_sum(1, 2, 4)
         multicall._notify.notify_hello(7)
@@ -253,23 +259,23 @@ class TestCompatibility(unittest.TestCase):
             valid_req = valid_request[i]
             self.assertTrue(req == valid_req)
         self.assertTrue(history.response == '')
-        
+
 class InternalTests(unittest.TestCase):
-    """ 
-    These tests verify that the client and server portions of 
+    """
+    These tests verify that the client and server portions of
     jsonrpclib talk to each other properly.
-    """    
+    """
     client = None
     server = None
     port = None
-    
+
     def setUp(self):
         self.port = PORTS.pop()
         self.server = server_set_up(addr=('', self.port))
-    
+
     def get_client(self):
         return Server('http://localhost:%d' % self.port)
-        
+
     def get_multicall_client(self):
         server = self.get_client()
         return MultiCall(server)
@@ -278,33 +284,33 @@ class InternalTests(unittest.TestCase):
         client = self.get_client()
         result = client.ping()
         self.assertTrue(result)
-        
+
     def test_single_args(self):
         client = self.get_client()
         result = client.add(5, 10)
         self.assertTrue(result == 15)
-        
+
     def test_single_kwargs(self):
         client = self.get_client()
         result = client.add(x=5, y=10)
         self.assertTrue(result == 15)
-        
+
     def test_single_kwargs_and_args(self):
         client = self.get_client()
         self.assertRaises(ProtocolError, client.add, (5,), {'y':10})
-        
+
     def test_single_notify(self):
         client = self.get_client()
         result = client._notify.add(5, 10)
         self.assertTrue(result == None)
-    
+
     def test_single_namespace(self):
         client = self.get_client()
         response = client.namespace.sum(1,2,4)
         request = json.loads(history.request)
         response = json.loads(history.response)
         verify_request = {
-            "jsonrpc": "2.0", "params": [1, 2, 4], 
+            "jsonrpc": "2.0", "params": [1, 2, 4],
             "id": "5", "method": "namespace.sum"
         }
         verify_response = {
@@ -314,7 +320,7 @@ class InternalTests(unittest.TestCase):
         verify_response['id'] = request['id']
         self.assertTrue(verify_request == request)
         self.assertTrue(verify_response == response)
-        
+
     def test_multicall_success(self):
         multicall = self.get_multicall_client()
         multicall.ping()
@@ -325,14 +331,14 @@ class InternalTests(unittest.TestCase):
         for result in multicall():
             self.assertTrue(result == correct[i])
             i += 1
-            
+
     def test_multicall_success(self):
         multicall = self.get_multicall_client()
         for i in range(3):
             multicall.add(5, i)
         result = multicall()
         self.assertTrue(result[2] == 7)
-    
+
     def test_multicall_failure(self):
         multicall = self.get_multicall_client()
         multicall.ping()
@@ -346,51 +352,51 @@ class InternalTests(unittest.TestCase):
                 def func():
                     return result[i]
                 self.assertRaises(raises[i], func)
-        
-        
+
+
 if jsonrpc.USE_UNIX_SOCKETS:
     # We won't do these tests unless Unix Sockets are supported
-    
+
     class UnixSocketInternalTests(InternalTests):
         """
-        These tests run the same internal communication tests, 
+        These tests run the same internal communication tests,
         but over a Unix socket instead of a TCP socket.
         """
         def setUp(self):
             suffix = "%d.sock" % PORTS.pop()
-            
-            # Open to safer, alternative processes 
+
+            # Open to safer, alternative processes
             # for getting a temp file name...
             temp = tempfile.NamedTemporaryFile(
                 suffix=suffix
             )
             self.port = temp.name
             temp.close()
-            
+
             self.server = server_set_up(
-                addr=self.port, 
+                addr=self.port,
                 address_family=socket.AF_UNIX
             )
 
         def get_client(self):
-            return Server('unix:/%s' % self.port)
-            
+            return Server('unix:/%s' % self.port, verbose=1)
+
         def tearDown(self):
             """ Removes the tempory socket file """
             os.unlink(self.port)
-            
+
 class UnixSocketErrorTests(unittest.TestCase):
-    """ 
-    Simply tests that the proper exceptions fire if 
+    """
+    Simply tests that the proper exceptions fire if
     Unix sockets are attempted to be used on a platform
     that doesn't support them.
     """
-    
+
     def setUp(self):
         self.original_value = jsonrpc.USE_UNIX_SOCKETS
         if (jsonrpc.USE_UNIX_SOCKETS):
             jsonrpc.USE_UNIX_SOCKETS = False
-        
+
     def test_client(self):
         address = "unix://shouldnt/work.sock"
         self.assertRaises(
@@ -398,34 +404,232 @@ class UnixSocketErrorTests(unittest.TestCase):
             Server,
             address
         )
-        
+
     def tearDown(self):
         jsonrpc.USE_UNIX_SOCKETS = self.original_value
-        
+
+class HeadersTests(unittest.TestCase):
+    """
+    These tests verify functionality of additional headers.
+    """
+    client = None
+    server = None
+    port = None
+
+    REQUEST_LINE = "^send: POST"
+
+    def setUp(self):
+        self.port = PORTS.pop()
+        self.server = server_set_up(addr=('', self.port))
+
+    @contextlib.contextmanager
+    def captured_headers(self):
+        """
+            Captures the request headers. Yields the {header : value} dict,
+            where keys are in lowercase.
+        """
+        stdout = sys.stdout
+        sys.stdout = f = StringIO.StringIO()
+        headers = {}
+        yield headers
+        sys.stdout = stdout
+
+        request_lines = f.getvalue().splitlines()
+        request_lines = filter(lambda l: l.startswith("send:"), request_lines)
+        request_line = request_lines[0]
+
+        try:
+            request_line = eval(request_line.split("send: ")[-1])
+        except:
+            request_line = str(request_line)
+
+        raw_headers = request_line.splitlines()[1:-1]
+        raw_headers = map(lambda h: re.split(":\s?", h, 1), raw_headers)
+        for header, value in raw_headers:
+            headers[header.lower()] = value
+
+    def test_should_extract_headers(self):
+        # given
+        client = Server('http://localhost:%d' % self.port, verbose=1)
+
+        # when
+        with self.captured_headers() as headers:
+            response = client.ping()
+            self.assertTrue(response)
+
+        # then
+        self.assertTrue(len(headers) > 0)
+        self.assertTrue('content-type' in headers)
+        self.assertEqual(headers['content-type'], 'application/json-rpc')
+
+    def test_should_add_additional_headers(self):
+        # given
+        client = Server('http://localhost:%d' % self.port, verbose=1,
+                    headers={'X-My-Header' : 'Test'})
+
+        # when
+        with self.captured_headers() as headers:
+            response = client.ping()
+            self.assertTrue(response)
+
+        # then
+        self.assertTrue('x-my-header' in headers)
+        self.assertEqual(headers['x-my-header'], 'Test')
+
+    def test_should_add_additional_headers_to_notifications(self):
+        # given
+        client = Server('http://localhost:%d' % self.port, verbose=1,
+                    headers={'X-My-Header' : 'Test'})
+
+        # when
+        with self.captured_headers() as headers:
+            client._notify.ping()
+
+        # then
+        self.assertTrue('x-my-header' in headers)
+        self.assertEqual(headers['x-my-header'], 'Test')
+
+    def test_should_override_headers(self):
+        # given
+        client = Server('http://localhost:%d' % self.port, verbose=1,
+            headers={
+                'User-Agent' : 'jsonrpclib test',
+                'Host' : 'example.com'
+            })
+
+        # when
+        with self.captured_headers() as headers:
+            response = client.ping()
+            self.assertTrue(response)
+
+        # then
+        self.assertEqual(headers['user-agent'], 'jsonrpclib test')
+        self.assertEqual(headers['host'], 'example.com')
+
+    def test_should_not_override_content_length(self):
+        # given
+        client = Server('http://localhost:%d' % self.port, verbose=1,
+                    headers={'Content-Length' : 'invalid value'})
+
+        # when
+        with self.captured_headers() as headers:
+            response = client.ping()
+            self.assertTrue(response)
+
+        # then
+        self.assertTrue('content-length' in headers)
+        self.assertNotEqual(headers['content-length'], 'invalid value')
+
+    def test_should_convert_header_values_to_basestring(self):
+        # given
+        client = Server('http://localhost:%d' % self.port, verbose=1,
+                    headers={'X-Test' : 123})
+
+        # when
+        with self.captured_headers() as headers:
+            response = client.ping()
+            self.assertTrue(response)
+
+        # then
+        self.assertTrue('x-test' in headers)
+        self.assertEqual(headers['x-test'], '123')
+
+    def test_should_add_custom_headers_to_methods(self):
+        # given
+        client = Server('http://localhost:%d' % self.port, verbose=1)
+
+        # when
+        with self.captured_headers() as headers:
+            with client._additional_headers({'X-Method' : 'Method'}) as cl:
+                response = cl.ping()
+
+            self.assertTrue(response)
+
+        # then
+        self.assertTrue('x-method' in headers)
+        self.assertEqual(headers['x-method'], 'Method')
+
+    def test_should_override_global_headers(self):
+        # given
+        client = Server('http://localhost:%d' % self.port, verbose=1,
+                headers={'X-Test' : 'Global'})
+
+        # when
+        with self.captured_headers() as headers:
+            with client._additional_headers({'X-Test' : 'Method'}) as cl:
+                response = cl.ping()
+                self.assertTrue(response)
+
+        # then
+        self.assertTrue('x-test' in headers)
+        self.assertEqual(headers['x-test'], 'Method')
+
+    def test_should_restore_global_headers(self):
+        # given
+        client = Server('http://localhost:%d' % self.port, verbose=1,
+                headers={'X-Test' : 'Global'})
+
+        # when
+        with self.captured_headers() as headers:
+            with client._additional_headers({'X-Test' : 'Method'}) as cl:
+                response = cl.ping()
+                self.assertTrue(response)
+
+        with self.captured_headers() as headers:
+            response = cl.ping()
+            self.assertTrue(response)
+
+        # then
+        self.assertTrue('x-test' in headers)
+        self.assertEqual(headers['x-test'], 'Global')
+
+    def test_should_allow_to_nest_additional_header_blocks(self):
+        # given
+        client = Server('http://localhost:%d' % self.port, verbose=1)
+
+        # when
+        with client._additional_headers({'X-Level-1' : '1'}) as cl_level1:
+            with self.captured_headers() as headers1:
+                response = cl_level1.ping()
+                self.assertTrue(response)
+
+            with cl_level1._additional_headers({'X-Level-2' : '2'}) as cl:
+                with self.captured_headers() as headers2:
+                    response = cl.ping()
+                    self.assertTrue(response)
+
+        # then
+        self.assertTrue('x-level-1' in headers1)
+        self.assertEqual(headers1['x-level-1'], '1')
+
+        self.assertTrue('x-level-1' in headers2)
+        self.assertEqual(headers1['x-level-1'], '1')
+        self.assertTrue('x-level-2' in headers2)
+        self.assertEqual(headers2['x-level-2'], '2')
 
 """ Test Methods """
 def subtract(minuend, subtrahend):
     """ Using the keywords from the JSON-RPC v2 doc """
     return minuend-subtrahend
-    
+
 def add(x, y):
     return x + y
-    
+
 def update(*args):
     return args
-    
+
 def summation(*args):
     return sum(args)
-    
+
 def notify_hello(*args):
     return args
-    
+
 def get_data():
     return ['hello', 5]
-        
+
 def ping():
     return True
-        
+
 def server_set_up(addr, address_family=socket.AF_INET):
     # Not sure this is a good idea to spin up a new server thread
     # for each test... but it seems to work fine.
@@ -452,5 +656,5 @@ if __name__ == '__main__':
     print "==============================================================="
     print "  NOTE: There may be threading exceptions after tests finish.  "
     print "==============================================================="
-    time.sleep(2)
+    time.sleep(1)
     unittest.main()

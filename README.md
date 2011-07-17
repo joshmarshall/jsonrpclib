@@ -1,7 +1,7 @@
 JSONRPClib
 ==========
 This library is an implementation of the JSON-RPC specification.
-It supports both the original 1.0 specification, as well as the 
+It supports both the original 1.0 specification, as well as the
 new (proposed) 2.0 spec, which includes batch submission, keyword
 arguments, etc.
 
@@ -10,18 +10,18 @@ It is licensed under the Apache License, Version 2.0
 
 Communication
 -------------
-Feel free to send any questions, comments, or patches to our Google Group 
-mailing list (you'll need to join to send a message): 
+Feel free to send any questions, comments, or patches to our Google Group
+mailing list (you'll need to join to send a message):
 http://groups.google.com/group/jsonrpclib
 
 Summary
 -------
-This library implements the JSON-RPC 2.0 proposed specification in pure Python. 
-It is designed to be as compatible with the syntax of xmlrpclib as possible 
-(it extends where possible), so that projects using xmlrpclib could easily be 
+This library implements the JSON-RPC 2.0 proposed specification in pure Python.
+It is designed to be as compatible with the syntax of xmlrpclib as possible
+(it extends where possible), so that projects using xmlrpclib could easily be
 modified to use JSON and experiment with the differences.
 
-It is backwards-compatible with the 1.0 specification, and supports all of the 
+It is backwards-compatible with the 1.0 specification, and supports all of the
 new proposed features of 2.0, including:
 
 * Batch submission (via MultiCall)
@@ -29,18 +29,21 @@ new proposed features of 2.0, including:
 * Notifications (both in a batch and 'normal')
 * Class translation using the 'jsonclass' key.
 
-I've added a "SimpleJSONRPCServer", which is intended to emulate the 
+I've added a "SimpleJSONRPCServer", which is intended to emulate the
 "SimpleXMLRPCServer" from the default Python distribution.
 
 Requirements
 ------------
-It supports cjson and simplejson, and looks for the parsers in that order 
-(searching first for cjson, then for the "built-in" simplejson as json in 2.6+, 
-and then the simplejson external library). One of these must be installed to 
-use this library, although if you have a standard distribution of 2.6+, you 
-should already have one. Keep in mind that cjson is supposed to be the 
-quickest, I believe, so if you are going for full-on optimization you may 
+It supports cjson and simplejson, and looks for the parsers in that order
+(searching first for cjson, then for the "built-in" simplejson as json in 2.6+,
+and then the simplejson external library). One of these must be installed to
+use this library, although if you have a standard distribution of 2.6+, you
+should already have one. Keep in mind that cjson is supposed to be the
+quickest, I believe, so if you are going for full-on optimization you may
 want to pick it up.
+
+Since library uses `contextlib` module You should have at least Python 2.5
+installed.
 
 Installation
 ------------
@@ -86,8 +89,8 @@ This is (obviously) taken from a console session.
 	{'key': 'value'}
 	# Note that there are only two responses -- this is according to spec.
 
-If you need 1.0 functionality, there are a bunch of places you can pass that 
-in, although the best is just to change the value on 
+If you need 1.0 functionality, there are a bunch of places you can pass that
+in, although the best is just to change the value on
 jsonrpclib.config.version:
 
 	>>> import jsonrpclib
@@ -101,17 +104,36 @@ jsonrpclib.config.version:
 	{"params": [7, 10], "id": "thes7tl2", "method": "add"}
 	>>> print jsonrpclib.history.response
 	{'id': 'thes7tl2', 'result': 17, 'error': None}
-	>>> 
+	>>>
 
-The equivalent loads and dumps functions also exist, although with minor 
-modifications. The dumps arguments are almost identical, but it adds three 
-arguments: rpcid for the 'id' key, version to specify the JSON-RPC 
-compatibility, and notify if it's a request that you want to be a 
-notification. 
+The equivalent loads and dumps functions also exist, although with minor
+modifications. The dumps arguments are almost identical, but it adds three
+arguments: rpcid for the 'id' key, version to specify the JSON-RPC
+compatibility, and notify if it's a request that you want to be a
+notification.
 
-Additionally, the loads method does not return the params and method like 
-xmlrpclib, but instead a.) parses for errors, raising ProtocolErrors, and 
+Additionally, the loads method does not return the params and method like
+xmlrpclib, but instead a.) parses for errors, raising ProtocolErrors, and
 b.) returns the entire structure of the request / response for manual parsing.
+
+### Additional headers
+
+If your remote service requires custom headers in request, you can pass them
+as as a `headers` keyword argument, when creating the `Server`:
+
+	>>> import jsonrpclib
+	>>> server = jsonrpclib.Server("http://localhost:8080", headers={'X-Test' : 'Test'})
+
+You can also put additional request headers only for certain method invocation:
+
+	>>> import jsonrpclib
+	>>> server = jsonrpclib.Server("http://localhost:8080")
+	>>> with server._additional_headers({'X-Test' : 'Test'}) as test_server:
+	...     test_server.ping()
+	...
+	>>> # X-Test header will be no longer sent in requests
+
+Of course `_additional_headers` contexts can be nested as well.
 
 SimpleJSONRPCServer
 -------------------
@@ -127,8 +149,8 @@ This is identical in usage (or should be) to the SimpleXMLRPCServer in the defau
 
 Class Translation
 -----------------
-I've recently added "automatic" class translation support, although it is 
-turned off by default. This can be devastatingly slow if improperly used, so 
+I've recently added "automatic" class translation support, although it is
+turned off by default. This can be devastatingly slow if improperly used, so
 the following is just a short list of things to keep in mind when using it.
 
 * Keep It (the object) Simple Stupid. (for exceptions, keep reading.)
@@ -136,18 +158,18 @@ the following is just a short list of things to keep in mind when using it.
 * Getter properties without setters could be dangerous (read: not tested)
 
 If any of the above are issues, use the _serialize method. (see usage below)
-The server and client must BOTH have use_jsonclass configuration item on and 
-they must both have access to the same libraries used by the objects for 
+The server and client must BOTH have use_jsonclass configuration item on and
+they must both have access to the same libraries used by the objects for
 this to work.
 
-If you have excessively nested arguments, it would be better to turn off the 
-translation and manually invoke it on specific objects using 
-jsonrpclib.jsonclass.dump / jsonrpclib.jsonclass.load (since the default 
+If you have excessively nested arguments, it would be better to turn off the
+translation and manually invoke it on specific objects using
+jsonrpclib.jsonclass.dump / jsonrpclib.jsonclass.load (since the default
 behavior recursively goes through attributes and lists / dicts / tuples).
 
 [test_obj.py]
 
-	# This object is /very/ simple, and the system will look through the 
+	# This object is /very/ simple, and the system will look through the
 	# attributes and serialize what it can.
 	class TestObj(object):
 	    foo = 'bar'
@@ -179,13 +201,13 @@ behavior recursively goes through attributes and lists / dicts / tuples).
 	# {"jsonrpc": "2.0", "params": [{"__jsonclass__": ["test_obj.TestSerial", ["foo"]]}], "id": "a0l976iv", "method": "ping"}
 	print jsonrpclib.history.result
 	# {'jsonrpc': '2.0', 'result': <test_obj.TestSerial object at 0x2744590>, 'id': 'a0l976iv'}
-	
-To turn on this behaviour, just set jsonrpclib.config.use_jsonclass to True. 
-If you want to use a different method for serialization, just set 
-jsonrpclib.config.serialize_method to the method name. Finally, if you are 
-using classes that you have defined in the implementation (as in, not a 
-separate library), you'll need to add those (on BOTH the server and the 
-client) using the jsonrpclib.config.classes.add() method. 
+
+To turn on this behaviour, just set jsonrpclib.config.use_jsonclass to True.
+If you want to use a different method for serialization, just set
+jsonrpclib.config.serialize_method to the method name. Finally, if you are
+using classes that you have defined in the implementation (as in, not a
+separate library), you'll need to add those (on BOTH the server and the
+client) using the jsonrpclib.config.classes.add() method.
 (Examples forthcoming.)
 
 Feedback on this "feature" is very, VERY much appreciated.
@@ -199,7 +221,7 @@ In my opinion, there are several reasons to choose JSON over XML for RPC:
 * Parsing - JSON should be much quicker to parse than XML.
 * Easy class passing with jsonclass (when enabled)
 
-In the interest of being fair, there are also a few reasons to choose XML 
+In the interest of being fair, there are also a few reasons to choose XML
 over JSON:
 
 * Your server doesn't do JSON (rather obvious)
