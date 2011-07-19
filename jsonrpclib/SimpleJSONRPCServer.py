@@ -96,6 +96,8 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
         try:
             response = self._dispatch(method, params)
         except:
+            if 'id' not in request.keys() or request['id'] == None:
+                raise
             exc_type, exc_value, exc_tb = sys.exc_info()
             fault = Fault(-32603, '%s:%s' % (exc_type, exc_value))
             return fault.response()
