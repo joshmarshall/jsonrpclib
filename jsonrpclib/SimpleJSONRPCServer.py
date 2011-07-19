@@ -53,7 +53,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
                                         allow_none=True,
                                         encoding=encoding)
 
-    def _marshaled_dispatch(self, data, dispatch_method = None):
+    def _marshaled_dispatch(self, data, dispatch_method = None, isNotification = [False]):
         response = None
         try:
             request = jsonrpclib.loads(data)
@@ -72,7 +72,8 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
                 if type(result) is Fault:
                     responses.append(result.response())
                     continue
-                resp_entry = self._marshaled_single_dispatch(req_entry)
+                isNotification[0] = 'id' not in request.keys() or request['id'] == None
+                resp_entry = self._marshaled_single_dispatch(isNotification[0], req_entry)
                 if resp_entry is not None:
                     responses.append(resp_entry)
             if len(responses) > 0:
@@ -83,10 +84,11 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
             result = validate_request(request)
             if type(result) is Fault:
                 return result.response()
-            response = self._marshaled_single_dispatch(request)
+            isNotification[0] = 'id' not in request.keys() or request['id'] == None
+            response = self._marshaled_single_dispatch(isNotification[0], request)
         return response
 
-    def _marshaled_single_dispatch(self, request):
+    def _marshaled_single_dispatch(self, isNotification, request):
         # TODO - Use the multiprocessing and skip the response if
         # it is a notification
         # Put in support for custom dispatcher here
@@ -94,14 +96,13 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
         method = request.get('method')
         params = request.get('params')
         try:
-            response = self._dispatch(method, params)
+            response = self._dispatch(method, params, isNotification)
         except:
-            if 'id' not in request.keys() or request['id'] == None:
-                raise
+            if isNotification: raise
             exc_type, exc_value, exc_tb = sys.exc_info()
             fault = Fault(-32603, '%s:%s' % (exc_type, exc_value))
             return fault.response()
-        if 'id' not in request.keys() or request['id'] == None:
+        if isNotification:
             # It's a notification
             return None
         try:
@@ -115,7 +116,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
             fault = Fault(-32603, '%s:%s' % (exc_type, exc_value))
             return fault.response()
 
-    def _dispatch(self, method, params):
+    def _dispatch(self, method, params, isNotification):
         func = None
         try:
             func = self.funcs[method]
@@ -142,6 +143,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
             except TypeError:
                 return Fault(-32602, 'Invalid parameters.')
             except:
+                if isNotification: raise
                 err_lines = traceback.format_exc().splitlines()
                 trace_string = '%s | %s' % (err_lines[-3], err_lines[-1])
                 fault = jsonrpclib.Fault(-32603, 'Server error: %s' % 
@@ -157,6 +159,7 @@ class SimpleJSONRPCRequestHandler(
         if not self.is_rpc_path_valid():
             self.report_404()
             return
+        isNotification=[False]
         try:
             max_chunk_size = 10*1024*1024
             size_remaining = int(self.headers["content-length"])
@@ -166,9 +169,13 @@ class SimpleJSONRPCRequestHandler(
                 L.append(self.rfile.read(chunk_size))
                 size_remaining -= len(L[-1])
             data = ''.join(L)
-            response = self.server._marshaled_dispatch(data)
+            response = self.server._marshaled_dispatch(data, None, isNotification)
+            if isNotification[0]:
+                self.connection.shutdown(1)
+                return
             self.send_response(200)
-        except Exception, e:
+        except: # Exception, e:
+            if isNotification[0]: raise
             self.send_response(500)
             err_lines = traceback.format_exc().splitlines()
             trace_string = '%s | %s' % (err_lines[-3], err_lines[-1])
