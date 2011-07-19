@@ -13,12 +13,15 @@ See the License for the specific language governing permissions and
 limitations under the License. 
 """
 
-import distutils.core
+from distribute_setup import use_setuptools
+use_setuptools()
 
-distutils.core.setup(
-    name = "jsonrpclib",
+from setuptools import setup, find_packages
+
+setup(name = "jsonrpclib",
     version = "0.1.3",
-    packages = ["jsonrpclib"],
+    packages = find_packages(),
+	install_requires=['ujson', 'omnijson'],
     author = "Josh Marshall",
     author_email = "catchjosh@gmail.com",
     url = "http://github.com/joshmarshall/jsonrpclib/",
