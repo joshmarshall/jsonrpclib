@@ -170,13 +170,13 @@ class SimpleJSONRPCRequestHandler(
                 size_remaining -= len(L[-1])
             data = ''.join(L)
             response = self.server._marshaled_dispatch(data, None, isNotification)
+            self.send_response(200)
             if isNotification[0]:
                 self.connection.shutdown(1)
                 return
-            self.send_response(200)
         except: # Exception, e:
-            if isNotification[0]: raise
             self.send_response(500)
+            if isNotification[0]: raise
             err_lines = traceback.format_exc().splitlines()
             trace_string = '%s | %s' % (err_lines[-3], err_lines[-1])
             fault = jsonrpclib.Fault(-32603, 'Server error: %s' % trace_string)
