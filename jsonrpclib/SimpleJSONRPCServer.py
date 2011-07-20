@@ -172,11 +172,15 @@ class SimpleJSONRPCRequestHandler(
             response = self.server._marshaled_dispatch(data, None, isNotification)
             self.send_response(200)
             if isNotification[0]:
+                self.wfile.flush()
                 self.connection.shutdown(1)
                 return
         except: # Exception, e:
             self.send_response(500)
-            if isNotification[0]: raise
+            if isNotification[0]:
+                self.wfile.flush()
+                self.connection.shutdown(1)
+                raise
             err_lines = traceback.format_exc().splitlines()
             trace_string = '%s | %s' % (err_lines[-3], err_lines[-1])
             fault = jsonrpclib.Fault(-32603, 'Server error: %s' % trace_string)
