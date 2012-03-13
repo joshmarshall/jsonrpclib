@@ -528,10 +528,11 @@ def check_for_errors(result):
             code = result['error']['code']
             message = result['error']['message']
             raise ProtocolError((code, message))
-        elif 'reason' in result['error']:
-            raise ProtocolError(result['error']['reason'])
+        elif type(result['error']) is dict and len(result['error']) == 1:
+            error_key = result['error'].keys()[0]
+            raise ProtocolError(result['error'][error_key])
         else:
-            raise ProtocolError(('Malformed result object', result['error']))
+            raise ProtocolError(result['error'])
     return result
 
 def isbatch(result):
