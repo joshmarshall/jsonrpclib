@@ -713,16 +713,27 @@ def check_for_errors(result):
 
     if 'error' in result and result['error']:
         # Server-side error
-        code = result['error']['code']
-        try:
-            # Get the message (jsonrpclib)
-            message = result['error']['message']
+        if 'code' in result['error']:
+            # Code + Message
+            code = result['error']['code']
+            try:
+                # Get the message (jsonrpclib)
+                message = result['error']['message']
 
-        except KeyError:
-            # Get the trace (jabsorb)
-            message = result['error'].get('trace', '<no error message>')
+            except KeyError:
+                # Get the trace (jabsorb)
+                message = result['error'].get('trace', '<no error message>')
 
-        raise ProtocolError((code, message))
+            raise ProtocolError((code, message))
+
+        elif isinstance(result['error'], dict) and len(result['error']) == 1:
+            # Error with a single entry ('reason', ...): use its content
+            error_key = result['error'].keys()[0]
+            raise ProtocolError(result['error'][error_key])
+
+        else:
+            # Use the raw error content
+            raise ProtocolError(result['error'])
 
     return result
 
