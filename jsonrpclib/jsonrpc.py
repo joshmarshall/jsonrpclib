@@ -61,6 +61,8 @@ import jsonrpclib
 from jsonrpclib import config
 from jsonrpclib import history
 
+extra = None
+
 # JSON library importing
 cjson = None
 json = None
@@ -425,6 +427,8 @@ class Payload(dict):
             request['params'] = params
         if self.version >= 2:
             request['jsonrpc'] = str(self.version)
+        if extra:
+            request.update(extra)
         return request
 
     def notify(self, method, params=[]):
