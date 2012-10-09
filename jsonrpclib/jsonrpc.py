@@ -217,10 +217,15 @@ class ServerProxy(XMLServerProxy):
         self.__transport = transport
         self.__encoding = encoding
         self.__verbose = verbose
+        self.__extra = None
+
+    def _set_extra(self, extra):
+        self.__extra = extra
 
     def _request(self, methodname, params, rpcid=None):
         request = dumps(params, methodname, encoding=self.__encoding,
-                        rpcid=rpcid, version=self.__version)
+                        rpcid=rpcid, version=self.__version,
+                        extra=self.__extra)
         response = self._run_request(request)
         check_for_errors(response)
         return response['result']
@@ -415,7 +420,7 @@ class Payload(dict):
         self.id = rpcid
         self.version = float(version)
     
-    def request(self, method, params=[]):
+    def request(self, method, params=[], extra=None):
         if type(method) not in types.StringTypes:
             raise ValueError('Method name must be a string.')
         if not self.id:
@@ -425,6 +430,8 @@ class Payload(dict):
             request['params'] = params
         if self.version >= 2:
             request['jsonrpc'] = str(self.version)
+        if extra:
+            request.update(extra)
         return request
 
     def notify(self, method, params=[]):
@@ -453,7 +460,8 @@ class Payload(dict):
         return error
 
 def dumps(params=[], methodname=None, methodresponse=None, 
-        encoding=None, rpcid=None, version=None, notify=None):
+        encoding=None, rpcid=None, version=None, notify=None,
+        extra=None):
     """
     This differs from the Python implementation in that it implements 
     the rpcid argument since the 2.0 spec requires it for responses.
@@ -492,7 +500,7 @@ def dumps(params=[], methodname=None, methodresponse=None,
     if notify == True:
         request = payload.notify(methodname, params)
     else:
-        request = payload.request(methodname, params)
+        request = payload.request(methodname, params, extra)
     return jdumps(request, encoding=encoding)
 
 def loads(data):
