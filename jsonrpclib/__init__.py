@@ -6,7 +6,7 @@ from jsonrpclib.config import Config
 config = Config.instance()
 
 # Easy access to utility methods
-from jsonrpclib.jsonrpc import Server, MultiCall, Fault, ProtocolError
+from jsonrpclib.jsonrpc import Server, MultiCall, Fault, ProtocolError, AppError
 from jsonrpclib.jsonrpc import loads, dumps, load, dump
 from jsonrpclib.jsonrpc import jloads, jdumps
 import jsonrpclib.utils as utils

@@ -122,6 +122,10 @@ except ImportError:
 class ProtocolError(Exception):
     pass
 
+class AppError(ProtocolError):
+    def data(self):
+        return self[0][2]
+
 class TransportMixIn(object):
     """ Just extends the XMLRPC transport where necessary. """
     user_agent = config.user_agent
@@ -723,6 +727,16 @@ def check_for_errors(result):
             except KeyError:
                 # Get the trace (jabsorb)
                 message = result['error'].get('trace', '<no error message>')
+
+            if -32700 <= code <= -32000:
+                # Pre-defined errors
+                # See http://www.jsonrpc.org/specification#error_object
+                raise ProtocolError((code, message))
+
+            else:
+                # Application error
+                data = result['error'].get('data', None)
+                raise AppError((code, message, data))
 
             raise ProtocolError((code, message))
 
