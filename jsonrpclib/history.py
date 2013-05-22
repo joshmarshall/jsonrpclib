@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -- Content-Encoding: UTF-8 --
+
 class History(object):
     """
     This holds all the response and request objects for a

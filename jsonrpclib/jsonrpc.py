@@ -1,15 +1,17 @@
+#!/usr/bin/python
+# -- Content-Encoding: UTF-8 --
 """
-Licensed under the Apache License, Version 2.0 (the "License"); 
-you may not use this file except in compliance with the License. 
-You may obtain a copy of the License at 
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0 
+   http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software 
-distributed under the License is distributed on an "AS IS" BASIS, 
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-See the License for the specific language governing permissions and 
-limitations under the License. 
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 
 ============================
 JSONRPC Library (jsonrpclib)
@@ -29,7 +31,7 @@ Eventually, I'll add a SimpleXMLRPCServer compatible library,
 and other things to tie the thing off nicely. :)
 
 For a quick-start, just open a console and type the following,
-replacing the server address, method, and parameters 
+replacing the server address, method, and parameters
 appropriately.
 >>> import jsonrpclib
 >>> server = jsonrpclib.Server('http://localhost:8181')
@@ -46,20 +48,45 @@ appropriately.
 See http://code.google.com/p/jsonrpclib/ for more info.
 """
 
-import types
-import sys
-from xmlrpclib import Transport as XMLTransport
-from xmlrpclib import SafeTransport as XMLSafeTransport
-from xmlrpclib import ServerProxy as XMLServerProxy
-from xmlrpclib import _Method as XML_Method
-import time
-import string
-import random
-
 # Library includes
-import jsonrpclib
 from jsonrpclib import config
 from jsonrpclib import history
+
+# Standard library
+import random
+from socket import socket
+import string
+import sys
+
+if sys.version_info[0] < 3:
+    # Python 2
+    from httplib import HTTPConnection
+    from urllib import splittype
+    from urllib import splithost
+    from xmlrpclib import Transport as XMLTransport
+    from xmlrpclib import SafeTransport as XMLSafeTransport
+    from xmlrpclib import ServerProxy as XMLServerProxy
+    from xmlrpclib import _Method as XML_Method
+
+    import types
+    StringTypes = types.StringTypes
+    TupleType = types.TupleType
+    ListType = types.ListType
+    DictType = types.DictType
+
+else:
+    # Python 3
+    from http.client import HTTPConnection
+    from urllib.parse import splittype
+    from urllib.parse import splithost
+    from xmlrpc.client import Transport as XMLTransport
+    from xmlrpc.client import SafeTransport as XMLSafeTransport
+    from xmlrpc.client import ServerProxy as XMLServerProxy
+    from xmlrpc.client import _Method as XML_Method
+
+    StringTypes = (str,)
+    TupleType = tuple
+    ListType = list
 
 # JSON library importing
 cjson = None
@@ -81,8 +108,8 @@ except ImportError:
 IDCHARS = string.ascii_lowercase + string.digits
 
 class UnixSocketMissing(Exception):
-    """ 
-    Just a properly named Exception if Unix Sockets usage is 
+    """
+    Just a properly named Exception if Unix Sockets usage is
     attempted on a platform that doesn't support them (Windows)
     """
     pass
@@ -95,7 +122,13 @@ def jdumps(obj, encoding='utf-8'):
     if cjson:
         return cjson.encode(obj)
     else:
-        return json.dumps(obj, encoding=encoding)
+        try:
+            # Python 2 (explicit encoding)
+            return json.dumps(obj, encoding=encoding)
+
+        except:
+            # Python 3 (no more encoding parameter)
+            return json.dumps(obj)
 
 def jloads(json_string):
     global cjson
@@ -142,6 +175,12 @@ class JSONTarget(object):
         self.data = []
 
     def feed(self, data):
+
+        try:
+            data = str(data, "UTF-8")
+        except:
+            pass
+
         self.data.append(data)
 
     def close(self):
@@ -152,8 +191,7 @@ class Transport(TransportMixIn, XMLTransport):
 
 class SafeTransport(TransportMixIn, XMLSafeTransport):
     pass
-from httplib import HTTP, HTTPConnection
-from socket import socket
+
 
 USE_UNIX_SOCKETS = False
 
@@ -170,14 +208,14 @@ if (USE_UNIX_SOCKETS):
             self.sock = socket(AF_UNIX, SOCK_STREAM)
             self.sock.connect(self.host)
 
-    class UnixHTTP(HTTP):
-        _connection_class = UnixHTTPConnection
+    # Incompatible with Python 3.x
+    # class UnixHTTP(HTTP):
+    #    _connection_class = UnixHTTPConnection
 
     class UnixTransport(TransportMixIn, XMLTransport):
         def make_connection(self, host):
-            import httplib
-            host, extra_headers, x509 = self.get_host_info(host)
-            return UnixHTTP(host)
+            host = self.get_host_info(host)[0]
+            return UnixHTTPConnection(host)
 
 
 class ServerProxy(XMLServerProxy):
@@ -188,11 +226,10 @@ class ServerProxy(XMLServerProxy):
 
     def __init__(self, uri, transport=None, encoding=None,
                  verbose=0, version=None):
-        import urllib
         if not version:
             version = config.version
         self.__version = version
-        schema, uri = urllib.splittype(uri)
+        schema, uri = splittype(uri)
         if schema not in ('http', 'https', 'unix'):
             raise IOError('Unsupported JSON-RPC protocol.')
         if schema == 'unix':
@@ -202,11 +239,11 @@ class ServerProxy(XMLServerProxy):
             self.__host = uri
             self.__handler = '/'
         else:
-            self.__host, self.__handler = urllib.splithost(uri)
+            self.__host, self.__handler = splithost(uri)
             if not self.__handler:
                 # Not sure if this is in the JSON spec?
-                # self.__handler = '/'
-                self.__handler == '/'
+                self.__handler = '/'
+
         if transport is None:
             if schema == 'unix':
                 transport = UnixTransport()
@@ -276,6 +313,9 @@ class _Method(XML_Method):
             return self.__send(self.__name, kwargs)
 
     def __getattr__(self, name):
+        if name == "__name__":
+            return self.__name
+
         self.__name = '%s.%s' % (self.__name, name)
         return self
         # The old method returned a new instance, but this seemed wasteful.
@@ -404,7 +444,7 @@ class Fault(object):
 
 def random_id(length=8):
     return_id = ''
-    for i in range(length):
+    for _ in range(length):
         return_id += random.choice(IDCHARS)
     return return_id
 
@@ -416,7 +456,7 @@ class Payload(dict):
         self.version = float(version)
 
     def request(self, method, params=[]):
-        if type(method) not in types.StringTypes:
+        if type(method) not in StringTypes:
             raise ValueError('Method name must be a string.')
         if not self.id:
             self.id = random_id()
@@ -455,16 +495,16 @@ class Payload(dict):
 def dumps(params=[], methodname=None, methodresponse=None,
         encoding=None, rpcid=None, version=None, notify=None):
     """
-    This differs from the Python implementation in that it implements 
+    This differs from the Python implementation in that it implements
     the rpcid argument since the 2.0 spec requires it for responses.
     """
     if not version:
         version = config.version
-    valid_params = (types.TupleType, types.ListType, types.DictType)
-    if methodname in types.StringTypes and \
+    valid_params = (TupleType, ListType, DictType)
+    if methodname in StringTypes and \
             type(params) not in valid_params and \
             not isinstance(params, Fault):
-        """ 
+        """
         If a method, and params are not in a listish or a Fault,
         error out.
         """
@@ -477,7 +517,7 @@ def dumps(params=[], methodname=None, methodresponse=None,
     if type(params) is Fault:
         response = payload.error(params.faultCode, params.faultString)
         return jdumps(response, encoding=encoding)
-    if type(methodname) not in types.StringTypes and methodresponse != True:
+    if type(methodname) not in StringTypes and methodresponse != True:
         raise ValueError('Method name must be a string, or methodresponse ' +
                          'must be set to True.')
     if config.use_jsonclass == True:
@@ -517,7 +557,7 @@ def check_for_errors(result):
     if not result:
         # Notification
         return result
-    if type(result) is not types.DictType:
+    if type(result) is not DictType:
         raise TypeError('Response is not a dict.')
     if 'jsonrpc' in result.keys() and float(result['jsonrpc']) > 2.0:
         raise NotImplementedError('JSON-RPC version not yet supported.')
@@ -530,11 +570,11 @@ def check_for_errors(result):
     return result
 
 def isbatch(result):
-    if type(result) not in (types.ListType, types.TupleType):
+    if type(result) not in (ListType, TupleType):
         return False
     if len(result) < 1:
         return False
-    if type(result[0]) is not types.DictType:
+    if type(result[0]) is not DictType:
         return False
     if 'jsonrpc' not in result[0].keys():
         return False

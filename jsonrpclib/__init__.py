@@ -1,3 +1,5 @@
+#!/usr/bin/python
+# -- Content-Encoding: UTF-8 --
 from jsonrpclib.config import Config
 config = Config.instance()
 from jsonrpclib.history import History

@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -- Content-Encoding: UTF-8 --
+
 import sys
 
 class LocalClasses(dict):
