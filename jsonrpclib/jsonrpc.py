@@ -78,7 +78,7 @@ except ImportError:
                 'module(s) available.'
             )
 
-IDCHARS = string.ascii_lowercase+string.digits
+IDCHARS = string.ascii_lowercase + string.digits
 
 class UnixSocketMissing(Exception):
     """ 
@@ -87,7 +87,7 @@ class UnixSocketMissing(Exception):
     """
     pass
 
-#JSON Abstractions
+# JSON Abstractions
 
 def jdumps(obj, encoding='utf-8'):
     # Do 'serialize' test at some point for other classes
@@ -157,14 +157,14 @@ from socket import socket
 
 USE_UNIX_SOCKETS = False
 
-try: 
+try:
     from socket import AF_UNIX, SOCK_STREAM
     USE_UNIX_SOCKETS = True
 except ImportError:
     pass
-    
+
 if (USE_UNIX_SOCKETS):
-    
+
     class UnixHTTPConnection(HTTPConnection):
         def connect(self):
             self.sock = socket(AF_UNIX, SOCK_STREAM)
@@ -179,14 +179,14 @@ if (USE_UNIX_SOCKETS):
             host, extra_headers, x509 = self.get_host_info(host)
             return UnixHTTP(host)
 
-    
+
 class ServerProxy(XMLServerProxy):
     """
     Unfortunately, much more of this class has to be copied since
     so much of it does the serialization.
     """
 
-    def __init__(self, uri, transport=None, encoding=None, 
+    def __init__(self, uri, transport=None, encoding=None,
                  verbose=0, version=None):
         import urllib
         if not version:
@@ -205,7 +205,7 @@ class ServerProxy(XMLServerProxy):
             self.__host, self.__handler = urllib.splithost(uri)
             if not self.__handler:
                 # Not sure if this is in the JSON spec?
-                #self.__handler = '/'
+                # self.__handler = '/'
                 self.__handler == '/'
         if transport is None:
             if schema == 'unix':
@@ -241,13 +241,13 @@ class ServerProxy(XMLServerProxy):
             request,
             verbose=self.__verbose
         )
-        
+
         # Here, the XMLRPC library translates a single list
         # response to the single value -- should we do the
         # same, and require a tuple / list to be passed to
-        # the response object, or expect the Server to be 
+        # the response object, or expect the Server to be
         # outputting the response appropriately?
-        
+
         history.add_response(response)
         if not response:
             return None
@@ -265,7 +265,7 @@ class ServerProxy(XMLServerProxy):
 
 
 class _Method(XML_Method):
-    
+
     def __call__(self, *args, **kwargs):
         if len(args) > 0 and len(kwargs) > 0:
             raise ProtocolError('Cannot use both positional ' +
@@ -280,7 +280,7 @@ class _Method(XML_Method):
         return self
         # The old method returned a new instance, but this seemed wasteful.
         # The only thing that changes is the name.
-        #return _Method(self.__send, "%s.%s" % (self.__name, name))
+        # return _Method(self.__send, "%s.%s" % (self.__name, name))
 
 class _Notify(object):
     def __init__(self, request):
@@ -288,11 +288,11 @@ class _Notify(object):
 
     def __getattr__(self, name):
         return _Method(self._request, name)
-        
+
 # Batch implementation
 
 class MultiCallMethod(object):
-    
+
     def __init__(self, method, notify=False):
         self.method = method
         self.params = []
@@ -313,14 +313,14 @@ class MultiCallMethod(object):
 
     def __repr__(self):
         return '%s' % self.request()
-        
+
     def __getattr__(self, method):
         new_method = '%s.%s' % (self.method, method)
         self.method = new_method
         return self
 
 class MultiCallNotify(object):
-    
+
     def __init__(self, multicall):
         self.multicall = multicall
 
@@ -330,7 +330,7 @@ class MultiCallNotify(object):
         return new_job
 
 class MultiCallIterator(object):
-    
+
     def __init__(self, results):
         self.results = results
 
@@ -348,7 +348,7 @@ class MultiCallIterator(object):
         return len(self.results)
 
 class MultiCall(object):
-    
+
     def __init__(self, server):
         self._server = server
         self._job_list = []
@@ -376,13 +376,13 @@ class MultiCall(object):
 
     __call__ = _request
 
-# These lines conform to xmlrpclib's "compatibility" line. 
+# These lines conform to xmlrpclib's "compatibility" line.
 # Not really sure if we should include these, but oh well.
 Server = ServerProxy
 
 class Fault(object):
     # JSON-RPC error class
-    def __init__(self, code=-32000, message='Server error', rpcid=None):
+    def __init__(self, code= -32000, message='Server error', rpcid=None):
         self.faultCode = code
         self.faultString = message
         self.rpcid = rpcid
@@ -414,7 +414,7 @@ class Payload(dict):
             version = config.version
         self.id = rpcid
         self.version = float(version)
-    
+
     def request(self, method, params=[]):
         if type(method) not in types.StringTypes:
             raise ValueError('Method name must be a string.')
@@ -443,7 +443,7 @@ class Payload(dict):
             response['error'] = None
         return response
 
-    def error(self, code=-32000, message='Server error.'):
+    def error(self, code= -32000, message='Server error.'):
         error = self.response()
         if self.version >= 2:
             del error['result']
@@ -452,7 +452,7 @@ class Payload(dict):
         error['error'] = {'code':code, 'message':message}
         return error
 
-def dumps(params=[], methodname=None, methodresponse=None, 
+def dumps(params=[], methodname=None, methodresponse=None,
         encoding=None, rpcid=None, version=None, notify=None):
     """
     This differs from the Python implementation in that it implements 
@@ -478,7 +478,7 @@ def dumps(params=[], methodname=None, methodresponse=None,
         response = payload.error(params.faultCode, params.faultString)
         return jdumps(response, encoding=encoding)
     if type(methodname) not in types.StringTypes and methodresponse != True:
-        raise ValueError('Method name must be a string, or methodresponse '+
+        raise ValueError('Method name must be a string, or methodresponse ' +
                          'must be set to True.')
     if config.use_jsonclass == True:
         from jsonrpclib import jsonclass
@@ -505,7 +505,7 @@ def loads(data):
         # notification
         return None
     result = jloads(data)
-    # if the above raises an error, the implementing server code 
+    # if the above raises an error, the implementing server code
     # should return something like the following:
     # { 'jsonrpc':'2.0', 'error': fault.error(), id: None }
     if config.use_jsonclass == True:

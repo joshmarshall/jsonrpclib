@@ -22,18 +22,18 @@ def get_version(request):
     if 'id' in request.keys():
         return 1.0
     return None
-    
+
 def validate_request(request):
     if type(request) is not types.DictType:
         fault = Fault(
-            -32600, 'Request must be {}, not %s.' % type(request)
+ -32600, 'Request must be {}, not %s.' % type(request)
         )
         return fault
     rpcid = request.get('id', None)
     version = get_version(request)
     if not version:
         fault = Fault(-32600, 'Request %s invalid.' % request, rpcid=rpcid)
-        return fault        
+        return fault
     request.setdefault('params', [])
     method = request.get('method', None)
     params = request.get('params')
@@ -41,7 +41,7 @@ def validate_request(request):
     if not method or type(method) not in types.StringTypes or \
         type(params) not in param_types:
         fault = Fault(
-            -32600, 'Invalid request parameters or method.', rpcid=rpcid
+ -32600, 'Invalid request parameters or method.', rpcid=rpcid
         )
         return fault
     return True
@@ -53,7 +53,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
                                         allow_none=True,
                                         encoding=encoding)
 
-    def _marshaled_dispatch(self, data, dispatch_method = None):
+    def _marshaled_dispatch(self, data, dispatch_method=None):
         response = None
         try:
             request = jsonrpclib.loads(data)
@@ -79,7 +79,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
                 response = '[%s]' % ','.join(responses)
             else:
                 response = ''
-        else:    
+        else:
             result = validate_request(request)
             if type(result) is Fault:
                 return result.response()
@@ -142,7 +142,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
             except:
                 err_lines = traceback.format_exc().splitlines()
                 trace_string = '%s | %s' % (err_lines[-3], err_lines[-1])
-                fault = jsonrpclib.Fault(-32603, 'Server error: %s' % 
+                fault = jsonrpclib.Fault(-32603, 'Server error: %s' %
                                          trace_string)
                 return fault
         else:
@@ -150,13 +150,13 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
 
 class SimpleJSONRPCRequestHandler(
         SimpleXMLRPCServer.SimpleXMLRPCRequestHandler):
-    
+
     def do_POST(self):
         if not self.is_rpc_path_valid():
             self.report_404()
             return
         try:
-            max_chunk_size = 10*1024*1024
+            max_chunk_size = 10 * 1024 * 1024
             size_remaining = int(self.headers["content-length"])
             L = []
             while size_remaining:
@@ -198,7 +198,7 @@ class SimpleJSONRPCServer(SocketServer.TCPServer, SimpleJSONRPCDispatcher):
             # Unix sockets can't be bound if they already exist in the
             # filesystem. The convention of e.g. X11 is to unlink
             # before binding again.
-            if os.path.exists(addr): 
+            if os.path.exists(addr):
                 try:
                     os.unlink(addr)
                 except OSError:

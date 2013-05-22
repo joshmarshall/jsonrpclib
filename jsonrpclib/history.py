@@ -8,7 +8,7 @@ class History(object):
     requests = []
     responses = []
     _instance = None
-    
+
     @classmethod
     def instance(cls):
         if not cls._instance:
@@ -17,7 +17,7 @@ class History(object):
 
     def add_response(self, response_obj):
         self.responses.append(response_obj)
-    
+
     def add_request(self, request_obj):
         self.requests.append(request_obj)
 

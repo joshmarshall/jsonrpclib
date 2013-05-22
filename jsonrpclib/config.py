@@ -15,7 +15,7 @@ class Config(object):
     # Change to False to keep __jsonclass__ entries raw.
     serialize_method = '_serialize'
     # The serialize_method should be a string that references the
-    # method on a custom class object which is responsible for 
+    # method on a custom class object which is responsible for
     # returning a tuple of the constructor arguments and a dict of
     # attributes.
     ignore_attribute = '_ignore'
@@ -30,7 +30,7 @@ class Config(object):
         '.'.join([str(ver) for ver in sys.version_info[0:3]])
     # User agent to use for calls.
     _instance = None
-    
+
     @classmethod
     def instance(cls):
         if not cls._instance:

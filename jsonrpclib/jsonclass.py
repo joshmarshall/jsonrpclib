@@ -27,7 +27,7 @@ value_types = [
     types.NoneType
 ]
 
-supported_types = iter_types+string_types+numeric_types+value_types
+supported_types = iter_types + string_types + numeric_types + value_types
 invalid_module_chars = r'[^a-zA-Z0-9\_\.]'
 
 class TranslationError(Exception):
@@ -40,7 +40,7 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
         ignore_attribute = config.ignore_attribute
     obj_type = type(obj)
     # Parse / return default "types"...
-    if obj_type in numeric_types+string_types+value_types:
+    if obj_type in numeric_types + string_types + value_types:
         return obj
     if obj_type in iter_types:
         if obj_type in (types.ListType, types.TupleType):
@@ -64,7 +64,7 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
     json_class = class_name
     if module_name not in ['', '__main__']:
         json_class = '%s.%s' % (module_name, json_class)
-    return_obj = {"__jsonclass__":[json_class,]}
+    return_obj = {"__jsonclass__":[json_class, ]}
     # If a serialization method is defined..
     if serialize_method in dir(obj):
         # Params can be a dict (keyword) or list (positional)
@@ -79,7 +79,7 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
     # parameters passed to __init__
     return_obj['__jsonclass__'].append([])
     attrs = {}
-    ignore_list = getattr(obj, ignore_attribute, [])+ignore
+    ignore_list = getattr(obj, ignore_attribute, []) + ignore
     for attr_name, attr_value in obj.__dict__.iteritems():
         if type(attr_value) in supported_types and \
                 attr_name not in ignore_list and \
@@ -90,7 +90,7 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
     return return_obj
 
 def load(obj):
-    if type(obj) in string_types+numeric_types+value_types:
+    if type(obj) in string_types + numeric_types + value_types:
         return obj
     if type(obj) is types.ListType:
         return_list = []
