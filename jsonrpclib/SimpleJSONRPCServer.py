@@ -3,7 +3,7 @@
 
 # Local modules
 import jsonrpclib
-from jsonrpclib import Fault
+from jsonrpclib import Fault, utils
 
 # Standard library
 import socket
@@ -23,57 +23,10 @@ if sys.version_info[0] < 3:
     import SimpleXMLRPCServer as xmlrpcserver
     import SocketServer as socketserver
 
-    import types
-    StringTypes = types.StringTypes
-    TupleType = types.TupleType
-    ListType = types.ListType
-    DictType = types.DictType
-
-    def _to_bytes(string):
-        """
-        Converts the given string into bytes
-        """
-        if type(string) is unicode:
-            return str(string)
-
-        return string
-
-    def _from_bytes(data):
-        """
-        Converts the given bytes into a string
-        """
-        if type(data) is str:
-            return data
-
-        return str(data)
-
 else:
     # Python 3
     import xmlrpc.server as xmlrpcserver
     import socketserver
-
-    StringTypes = (str,)
-    TupleType = tuple
-    ListType = list
-    DictType = dict
-
-    def _to_bytes(string):
-        """
-        Converts the given string into bytes
-        """
-        if type(string) is bytes:
-            return string
-
-        return bytes(string, "UTF-8")
-
-    def _from_bytes(data):
-        """
-        Converts the given bytes into a string
-        """
-        if type(data) is str:
-            return data
-
-        return str(data, "UTF-8")
 
 # ------------------------------------------------------------------------------
 
@@ -86,7 +39,7 @@ def get_version(request):
     return None
 
 def validate_request(request):
-    if type(request) is not DictType:
+    if type(request) is not utils.DictType:
         fault = Fault(
  -32600, 'Request must be {}, not %s.' % type(request)
         )
@@ -99,12 +52,12 @@ def validate_request(request):
     request.setdefault('params', [])
     method = request.get('method', None)
     params = request.get('params')
-    param_types = (ListType, DictType, TupleType)
-    if not method or type(method) not in StringTypes or \
+    param_types = (utils.ListType, utils.DictType, utils.TupleType)
+    if not method or type(method) not in utils.StringTypes or \
         type(params) not in param_types:
-        fault = Fault(
- -32600, 'Invalid request parameters or method.', rpcid=rpcid
-        )
+        fault = Fault(-32600,
+                      'Invalid request parameters or method.',
+                      rpcid=rpcid)
         return fault
     return True
 
@@ -126,7 +79,7 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
         if not request:
             fault = Fault(-32600, 'Request invalid -- no request data.')
             return fault.response()
-        if type(request) is ListType:
+        if type(request) is utils.ListType:
             # This SHOULD be a batch, by spec
             responses = []
             for req_entry in request:
@@ -198,7 +151,7 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
                         pass
         if func is not None:
             try:
-                if type(params) is ListType:
+                if type(params) is utils.ListType:
                     response = func(*params)
                 else:
                     response = func(**params)
@@ -227,7 +180,7 @@ class SimpleJSONRPCRequestHandler(
             L = []
             while size_remaining:
                 chunk_size = min(size_remaining, max_chunk_size)
-                L.append(_from_bytes(self.rfile.read(chunk_size)))
+                L.append(utils.from_bytes(self.rfile.read(chunk_size)))
                 size_remaining -= len(L[-1])
             data = ''.join(L)
             response = self.server._marshaled_dispatch(data)
@@ -243,7 +196,7 @@ class SimpleJSONRPCRequestHandler(
         self.send_header("Content-type", "application/json-rpc")
         self.send_header("Content-length", str(len(response)))
         self.end_headers()
-        self.wfile.write(_to_bytes(response))
+        self.wfile.write(utils.to_bytes(response))
         self.wfile.flush()
         self.connection.shutdown(1)
 

@@ -49,8 +49,7 @@ See http://code.google.com/p/jsonrpclib/ for more info.
 """
 
 # Library includes
-from jsonrpclib import config
-from jsonrpclib import history
+from jsonrpclib import config, history, utils
 
 # Standard library
 import random
@@ -67,12 +66,6 @@ if sys.version_info[0] < 3:
     from xmlrpclib import ServerProxy as XMLServerProxy
     from xmlrpclib import _Method as XML_Method
 
-    import types
-    StringTypes = types.StringTypes
-    TupleType = types.TupleType
-    ListType = types.ListType
-    DictType = types.DictType
-
 else:
     # Python 3
     from http.client import HTTPConnection
@@ -82,10 +75,6 @@ else:
     from xmlrpc.client import SafeTransport as XMLSafeTransport
     from xmlrpc.client import ServerProxy as XMLServerProxy
     from xmlrpc.client import _Method as XML_Method
-
-    StringTypes = (str,)
-    TupleType = tuple
-    ListType = list
 
 # JSON library importing
 cjson = None
@@ -143,6 +132,9 @@ class TransportMixIn(object):
     _connection = None
 
     def send_content(self, connection, request_body):
+        # Convert the body first
+        request_body = utils.to_bytes(request_body)
+
         connection.putheader("Content-Type", "application/json-rpc")
         connection.putheader("Content-Length", str(len(request_body)))
         connection.endheaders()
@@ -168,9 +160,8 @@ class JSONTarget(object):
         self.data = []
 
     def feed(self, data):
-
         try:
-            data = str(data, "UTF-8")
+            data = utils.from_bytes(data)
         except:
             pass
 
@@ -421,7 +412,7 @@ class Payload(dict):
         self.version = float(version)
 
     def request(self, method, params=[]):
-        if type(method) not in StringTypes:
+        if type(method) not in utils.StringTypes:
             raise ValueError('Method name must be a string.')
         if not self.id:
             self.id = random_id()
@@ -465,8 +456,8 @@ def dumps(params=[], methodname=None, methodresponse=None,
     """
     if not version:
         version = config.version
-    valid_params = (TupleType, ListType, DictType)
-    if methodname in StringTypes and \
+    valid_params = (utils.TupleType, utils.ListType, utils.DictType)
+    if methodname in utils.StringTypes and \
             type(params) not in valid_params and \
             not isinstance(params, Fault):
         """
@@ -482,7 +473,7 @@ def dumps(params=[], methodname=None, methodresponse=None,
     if type(params) is Fault:
         response = payload.error(params.faultCode, params.faultString)
         return jdumps(response, encoding=encoding)
-    if type(methodname) not in StringTypes and methodresponse != True:
+    if type(methodname) not in utils.StringTypes and methodresponse != True:
         raise ValueError('Method name must be a string, or methodresponse ' +
                          'must be set to True.')
     if config.use_jsonclass == True:
@@ -522,7 +513,7 @@ def check_for_errors(result):
     if not result:
         # Notification
         return result
-    if type(result) is not DictType:
+    if type(result) is not utils.DictType:
         raise TypeError('Response is not a dict.')
     if 'jsonrpc' in result.keys() and float(result['jsonrpc']) > 2.0:
         raise NotImplementedError('JSON-RPC version not yet supported.')
@@ -535,11 +526,11 @@ def check_for_errors(result):
     return result
 
 def isbatch(result):
-    if type(result) not in (ListType, TupleType):
+    if type(result) not in (utils.ListType, utils.TupleType):
         return False
     if len(result) < 1:
         return False
-    if type(result[0]) is not DictType:
+    if type(result[0]) is not utils.DictType:
         return False
     if 'jsonrpc' not in result[0].keys():
         return False

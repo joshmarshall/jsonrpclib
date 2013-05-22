@@ -12,3 +12,4 @@ history = History.instance()
 # Easy access to utility methods
 from jsonrpclib.jsonrpc import Server, MultiCall, Fault
 from jsonrpclib.jsonrpc import ProtocolError, loads, dumps
+import jsonrpclib.utils as utils

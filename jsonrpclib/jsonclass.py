@@ -2,70 +2,13 @@
 # -- Content-Encoding: UTF-8 --
 
 # Local package
-from jsonrpclib import config
+from jsonrpclib import config, utils
 
 # Standard library
 import inspect
 import re
-import sys
 
-if sys.version_info[0] < 3 :
-    # Python 2
-    import types
-    TupleType = types.TupleType
-    ListType = types.ListType
-    DictType = types.DictType
-
-    iter_types = (
-        types.DictType,
-        types.ListType,
-        types.TupleType
-    )
-
-    string_types = (
-        types.StringType,
-        types.UnicodeType
-    )
-
-    numeric_types = (
-        types.IntType,
-        types.LongType,
-        types.FloatType
-    )
-
-    value_types = (
-        types.BooleanType,
-        types.NoneType
-    )
-
-else:
-    # Python 3
-    TupleType = tuple
-    ListType = list
-    DictType = dict
-
-    iter_types = (
-        dict,
-        list,
-        tuple
-    )
-
-    string_types = (
-        bytes,
-        str
-    )
-
-    numeric_types = (
-        int,
-        float
-    )
-
-    value_types = (
-        bool,
-        type(None)
-    )
-
-supported_types = iter_types + string_types + numeric_types + value_types
+supported_types = utils.iter_types + utils.primitive_types
 invalid_module_chars = r'[^a-zA-Z0-9\_\.]'
 
 class TranslationError(Exception):
@@ -78,17 +21,21 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
         ignore_attribute = config.ignore_attribute
     obj_type = type(obj)
     # Parse / return default "types"...
-    if obj_type in numeric_types + string_types + value_types:
+    # Primitive
+    if obj_type in utils.primitive_types:
         return obj
-    if obj_type in iter_types:
-        if obj_type in (ListType, TupleType):
+
+    # Iterative
+    if obj_type in utils.iter_types:
+        if obj_type in (utils.ListType, utils.TupleType):
             new_obj = []
             for item in obj:
                 new_obj.append(dump(item, serialize_method,
                                      ignore_attribute, ignore))
-            if obj_type is TupleType:
+            if obj_type is utils.TupleType:
                 new_obj = tuple(new_obj)
             return new_obj
+
         # It's a dict...
         else:
             new_obj = {}
@@ -96,6 +43,7 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
                 new_obj[key] = dump(value, serialize_method,
                                      ignore_attribute, ignore)
             return new_obj
+
     # It's not a standard type, so it needs __jsonclass__
     module_name = inspect.getmodule(obj).__name__
     class_name = obj.__class__.__name__
@@ -128,12 +76,12 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
     return return_obj
 
 def load(obj):
-    # Primtive
-    if type(obj) in string_types + numeric_types + value_types:
+    # Primitive
+    if type(obj) in utils.primitive_types:
         return obj
 
     # List
-    elif type(obj) in (ListType, TupleType):
+    elif type(obj) in (utils.ListType, utils.TupleType):
         return_list = []
         for entry in obj:
             return_list.append(load(entry))
@@ -175,9 +123,9 @@ def load(obj):
         json_class = getattr(temp_module, json_class_name)
     # Creating the object...
     new_obj = None
-    if type(params) is ListType:
+    if type(params) is utils.ListType:
         new_obj = json_class(*params)
-    elif type(params) is DictType:
+    elif type(params) is utils.DictType:
         new_obj = json_class(**params)
     else:
         raise TranslationError('Constructor args must be a dict or list.')
