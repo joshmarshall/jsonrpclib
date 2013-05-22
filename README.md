@@ -1,18 +1,30 @@
-JSONRPClib
-==========
+JSONRPClib (patched for Pelix)
+==============================
 This library is an implementation of the JSON-RPC specification.
 It supports both the original 1.0 specification, as well as the 
-new (proposed) 2.0 spec, which includes batch submission, keyword
+new (proposed) 2.0 specification, which includes batch submission, keyword
 arguments, etc.
 
 It is licensed under the Apache License, Version 2.0
 (http://www.apache.org/licenses/LICENSE-2.0.html).
 
-Communication
--------------
-Feel free to send any questions, comments, or patches to our Google Group 
-mailing list (you'll need to join to send a message): 
-http://groups.google.com/group/jsonrpclib
+About this version
+------------------
+This is a patched version of the original jsonrpclib project by Josh Marshall,
+available at https://github.com/joshmarshall/jsonrpclib.
+
+The suffix *-pelix* only indicates that this version works with Pelix Remote
+Services, but it is **not** a Pelix specific implementation.
+
+* This version adds support for Python 3, staying compatible with Python 2.
+* It is now possible to use the dispatch_method argument while extending
+  the SimpleJSONRPCDispatcher, to use a custom dispatcher.
+  This allows to use this package by Pelix Remote Services.
+
+* The support for Unix sockets has been removed, as it is not trivial to convert
+  to Python 3 (and I don't use them)
+* This version cannot be installed with the original jsonrpclib, as it uses the
+  same package name.
 
 Summary
 -------
@@ -47,14 +59,14 @@ Installation
 You can install this from PyPI with one of the following commands (sudo
 may be required):
 
-	easy_install jsonrpclib
-	pip install jsonrpclib
+	easy_install jsonrpclib-pelix
+	pip install jsonrpclib-pelix
 
 Alternatively, you can download the source from the github repository
-at http://github.com/joshmarshall/jsonrpclib and manually install it
+at http://github.com/tcalmant/jsonrpclib and manually install it
 with the following commands:
 
-	git clone git://github.com/joshmarshall/jsonrpclib.git
+	git clone git://github.com/tcalmant/jsonrpclib.git
 	cd jsonrpclib
 	python setup.py install
 
@@ -115,7 +127,12 @@ b.) returns the entire structure of the request / response for manual parsing.
 
 SimpleJSONRPCServer
 -------------------
-This is identical in usage (or should be) to the SimpleXMLRPCServer in the default Python install. Some of the differences in features are that it obviously supports notification, batch calls, class translation (if left on), etc. Note: The import line is slightly different from the regular SimpleXMLRPCServer, since the SimpleJSONRPCServer is distributed within the jsonrpclib library.
+This is identical in usage (or should be) to the SimpleXMLRPCServer in the
+default Python install. Some of the differences in features are that it
+obviously supports notification, batch calls, class translation (if left on),
+etc.
+Note: The import line is slightly different from the regular SimpleXMLRPCServer,
+since the SimpleJSONRPCServer is distributed within the jsonrpclib library.
 
 	from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
 
@@ -213,7 +230,3 @@ You can run it with:
 
 	python tests.py
 
-TODO
-----
-* Use HTTP error codes on SimpleJSONRPCServer
-* Test, test, test and optimize
