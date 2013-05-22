@@ -72,7 +72,8 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
                 if type(result) is Fault:
                     responses.append(result.response())
                     continue
-                resp_entry = self._marshaled_single_dispatch(req_entry)
+                resp_entry = self._marshaled_single_dispatch(req_entry,
+                                                             dispatch_method)
                 if resp_entry is not None:
                     responses.append(resp_entry)
             if len(responses) > 0:
@@ -83,10 +84,10 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
             result = validate_request(request)
             if type(result) is Fault:
                 return result.response()
-            response = self._marshaled_single_dispatch(request)
+            response = self._marshaled_single_dispatch(request, dispatch_method)
         return response
 
-    def _marshaled_single_dispatch(self, request):
+    def _marshaled_single_dispatch(self, request, dispatch_method=None):
         # TODO - Use the multiprocessing and skip the response if
         # it is a notification
         # Put in support for custom dispatcher here
@@ -94,7 +95,10 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
         method = request.get('method')
         params = request.get('params')
         try:
-            response = self._dispatch(method, params)
+            if dispatch_method is not None:
+                response = dispatch_method(method, params)
+            else:
+                response = self._dispatch(method, params)
         except:
             exc_type, exc_value, exc_tb = sys.exc_info()
             fault = Fault(-32603, '%s:%s' % (exc_type, exc_value))
