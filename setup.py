@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -- Content-Encoding: UTF-8 --
 """
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,17 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import distutils.core
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
 
-distutils.core.setup(
-    name = "jsonrpclib",
-    version = "0.1.3",
-    packages = ["jsonrpclib"],
-    author = "Josh Marshall",
-    author_email = "catchjosh@gmail.com",
-    url = "http://github.com/joshmarshall/jsonrpclib/",
-    license = "http://www.apache.org/licenses/LICENSE-2.0",
-    description = "This project is an implementation of the JSON-RPC v2.0 " +
-                  "specification (backwards-compatible) as a client library.",
-    long_description = open("README.md").read()
+# ------------------------------------------------------------------------------
+
+setup(
+    name="jsonrpclib-pelix",
+    version="0.1.4",
+    packages=["jsonrpclib"],
+    author="Thomas Calmant",
+    author_email="thomas.calmant@gmail.com",
+    url="http://github.com/tcalmant/jsonrpclib/",
+    license="http://www.apache.org/licenses/LICENSE-2.0",
+    description="Fork of jsonrpclib by Josh Marshall, usable with Pelix " \
+                "remote services." \
+                "This project is an implementation of the JSON-RPC v2.0 " \
+                "specification (backwards-compatible) as a client library.",
+    long_description=open("README.md").read()
 )
