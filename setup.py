@@ -24,14 +24,23 @@ except ImportError:
 setup(
     name="jsonrpclib-pelix",
     version="0.1.4",
-    packages=["jsonrpclib"],
+    license="http://www.apache.org/licenses/LICENSE-2.0",
     author="Thomas Calmant",
     author_email="thomas.calmant@gmail.com",
     url="http://github.com/tcalmant/jsonrpclib/",
-    license="http://www.apache.org/licenses/LICENSE-2.0",
+    download_url='https://github.com/tcalmant/jsonrpclib/archive/master.zip',
     description="Fork of jsonrpclib by Josh Marshall, usable with Pelix " \
                 "remote services." \
                 "This project is an implementation of the JSON-RPC v2.0 " \
                 "specification (backwards-compatible) as a client library.",
-    long_description=open("README.md").read()
+    long_description=open("README.rst").read(),
+    packages=["jsonrpclib"],
+    classifiers=[
+         'Development Status :: 5 - Production/Stable',
+         'Intended Audience :: Developers',
+         'License :: OSI Approved :: Apache Software License',
+         'Operating System :: OS Independent',
+         'Programming Language :: Python :: 2.7',
+         'Programming Language :: Python :: 3'
+    ]
 )
