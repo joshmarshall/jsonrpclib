@@ -65,15 +65,15 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
 
     def __init__(self, encoding=None):
         xmlrpcserver.SimpleXMLRPCDispatcher.__init__(self,
-                                        allow_none=True,
-                                        encoding=encoding)
+                                                     allow_none=True,
+                                                     encoding=encoding)
 
     def _marshaled_dispatch(self, data, dispatch_method=None):
         response = None
         try:
             request = jsonrpclib.loads(data)
-        except Exception as e:
-            fault = Fault(-32700, 'Request %s invalid. (%s)' % (data, e))
+        except Exception as ex:
+            fault = Fault(-32700, 'Request %s invalid. (%s)' % (data, ex))
             response = fault.response()
             return response
         if not request:
@@ -177,12 +177,12 @@ class SimpleJSONRPCRequestHandler(
         try:
             max_chunk_size = 10 * 1024 * 1024
             size_remaining = int(self.headers["content-length"])
-            L = []
+            chunks = []
             while size_remaining:
                 chunk_size = min(size_remaining, max_chunk_size)
-                L.append(utils.from_bytes(self.rfile.read(chunk_size)))
-                size_remaining -= len(L[-1])
-            data = ''.join(L)
+                chunks.append(utils.from_bytes(self.rfile.read(chunk_size)))
+                size_remaining -= len(chunks[-1])
+            data = ''.join(chunks)
             response = self.server._marshaled_dispatch(data)
             self.send_response(200)
         except Exception:

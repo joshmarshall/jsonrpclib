@@ -52,13 +52,11 @@ See http://code.google.com/p/jsonrpclib/ for more info.
 from jsonrpclib import config, history, utils
 
 # Standard library
-import random
-import string
 import sys
+import uuid
 
 if sys.version_info[0] < 3:
     # Python 2
-    from httplib import HTTPConnection
     from urllib import splittype
     from urllib import splithost
     from xmlrpclib import Transport as XMLTransport
@@ -68,7 +66,6 @@ if sys.version_info[0] < 3:
 
 else:
     # Python 3
-    from http.client import HTTPConnection
     from urllib.parse import splittype
     from urllib.parse import splithost
     from xmlrpc.client import Transport as XMLTransport
@@ -76,47 +73,43 @@ else:
     from xmlrpc.client import ServerProxy as XMLServerProxy
     from xmlrpc.client import _Method as XML_Method
 
-# JSON library importing
-cjson = None
-json = None
+# ------------------------------------------------------------------------------
+# JSON library import
 try:
+    # Using cjson
     import cjson
+
+    # Declare cjson methods
+    def jdumps(obj, encoding='utf-8'):
+        return cjson.encode(obj)
+
+    def jloads(json_string):
+        return cjson.decode(json_string)
+
 except ImportError:
+    # Use json or simplejson
     try:
         import json
     except ImportError:
         try:
             import simplejson as json
         except ImportError:
-            raise ImportError(
-                'You must have the cjson, json, or simplejson ' +
-                'module(s) available.'
-            )
+            raise ImportError('You must have the cjson, json, or simplejson ' \
+                              'module(s) available.')
 
-IDCHARS = string.ascii_lowercase + string.digits
-
-# ------------------------------------------------------------------------------
-# JSON Abstractions
-
-def jdumps(obj, encoding='utf-8'):
-    # Do 'serialize' test at some point for other classes
-    global cjson
-    if cjson:
-        return cjson.encode(obj)
-    else:
-        try:
+    # Declare json methods
+    if sys.version_info[0] < 3:
+        def jdumps(obj, encoding='utf-8'):
             # Python 2 (explicit encoding)
             return json.dumps(obj, encoding=encoding)
 
-        except:
-            # Python 3 (no more encoding parameter)
+    else:
+        # Python 3
+        def jdumps(obj, encoding='utf-8'):
+            # Python 3 (the encoding parameter has been removed)
             return json.dumps(obj)
 
-def jloads(json_string):
-    global cjson
-    if cjson:
-        return cjson.decode(json_string)
-    else:
+    def jloads(json_string):
         return json.loads(json_string)
 
 # ------------------------------------------------------------------------------
@@ -398,14 +391,9 @@ class Fault(object):
     def __repr__(self):
         return '<Fault %s: %s>' % (self.faultCode, self.faultString)
 
-def random_id(length=8):
-    return_id = ''
-    for _ in range(length):
-        return_id += random.choice(IDCHARS)
-    return return_id
-
 class Payload(dict):
     def __init__(self, rpcid=None, version=None):
+        dict.__init__(self)
         if not version:
             version = config.version
         self.id = rpcid
@@ -414,8 +402,11 @@ class Payload(dict):
     def request(self, method, params=[]):
         if type(method) not in utils.StringTypes:
             raise ValueError('Method name must be a string.')
+
         if not self.id:
-            self.id = random_id()
+            # Generate a request ID
+            self.id = str(uuid.uuid4())
+
         request = { 'id':self.id, 'method':method }
         if params:
             request['params'] = params
@@ -449,7 +440,7 @@ class Payload(dict):
         return error
 
 def dumps(params=[], methodname=None, methodresponse=None,
-        encoding=None, rpcid=None, version=None, notify=None):
+          encoding=None, rpcid=None, version=None, notify=None):
     """
     This differs from the Python implementation in that it implements
     the rpcid argument since the 2.0 spec requires it for responses.
