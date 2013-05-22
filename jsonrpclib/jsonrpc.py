@@ -54,7 +54,6 @@ from jsonrpclib import history
 
 # Standard library
 import random
-from socket import socket
 import string
 import sys
 
@@ -107,13 +106,7 @@ except ImportError:
 
 IDCHARS = string.ascii_lowercase + string.digits
 
-class UnixSocketMissing(Exception):
-    """
-    Just a properly named Exception if Unix Sockets usage is
-    attempted on a platform that doesn't support them (Windows)
-    """
-    pass
-
+# ------------------------------------------------------------------------------
 # JSON Abstractions
 
 def jdumps(obj, encoding='utf-8'):
@@ -137,7 +130,7 @@ def jloads(json_string):
     else:
         return json.loads(json_string)
 
-
+# ------------------------------------------------------------------------------
 # XMLRPClib re-implementations
 
 class ProtocolError(Exception):
@@ -192,31 +185,7 @@ class Transport(TransportMixIn, XMLTransport):
 class SafeTransport(TransportMixIn, XMLSafeTransport):
     pass
 
-
-USE_UNIX_SOCKETS = False
-
-try:
-    from socket import AF_UNIX, SOCK_STREAM
-    USE_UNIX_SOCKETS = True
-except ImportError:
-    pass
-
-if (USE_UNIX_SOCKETS):
-
-    class UnixHTTPConnection(HTTPConnection):
-        def connect(self):
-            self.sock = socket(AF_UNIX, SOCK_STREAM)
-            self.sock.connect(self.host)
-
-    # Incompatible with Python 3.x
-    # class UnixHTTP(HTTP):
-    #    _connection_class = UnixHTTPConnection
-
-    class UnixTransport(TransportMixIn, XMLTransport):
-        def make_connection(self, host):
-            host = self.get_host_info(host)[0]
-            return UnixHTTPConnection(host)
-
+# ------------------------------------------------------------------------------
 
 class ServerProxy(XMLServerProxy):
     """
@@ -230,24 +199,16 @@ class ServerProxy(XMLServerProxy):
             version = config.version
         self.__version = version
         schema, uri = splittype(uri)
-        if schema not in ('http', 'https', 'unix'):
+        if schema not in ('http', 'https'):
             raise IOError('Unsupported JSON-RPC protocol.')
-        if schema == 'unix':
-            if not USE_UNIX_SOCKETS:
-                # Don't like the "generic" Exception...
-                raise UnixSocketMissing("Unix sockets not available.")
-            self.__host = uri
+
+        self.__host, self.__handler = splithost(uri)
+        if not self.__handler:
+            # Not sure if this is in the JSON spec?
             self.__handler = '/'
-        else:
-            self.__host, self.__handler = splithost(uri)
-            if not self.__handler:
-                # Not sure if this is in the JSON spec?
-                self.__handler = '/'
 
         if transport is None:
-            if schema == 'unix':
-                transport = UnixTransport()
-            elif schema == 'https':
+            if schema == 'https':
                 transport = SafeTransport()
             else:
                 transport = Transport()
@@ -300,6 +261,7 @@ class ServerProxy(XMLServerProxy):
         # Just like __getattr__, but with notify namespace.
         return _Notify(self._request_notify)
 
+# ------------------------------------------------------------------------------
 
 class _Method(XML_Method):
 
@@ -329,6 +291,7 @@ class _Notify(object):
     def __getattr__(self, name):
         return _Method(self._request, name)
 
+# ------------------------------------------------------------------------------
 # Batch implementation
 
 class MultiCallMethod(object):
@@ -419,6 +382,8 @@ class MultiCall(object):
 # These lines conform to xmlrpclib's "compatibility" line.
 # Not really sure if we should include these, but oh well.
 Server = ServerProxy
+
+# ------------------------------------------------------------------------------
 
 class Fault(object):
     # JSON-RPC error class

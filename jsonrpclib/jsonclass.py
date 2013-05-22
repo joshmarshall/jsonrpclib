@@ -1,69 +1,69 @@
 #!/usr/bin/python
 # -- Content-Encoding: UTF-8 --
-import types
+
+# Local package
+from jsonrpclib import config
+
+# Standard library
 import inspect
 import re
 import sys
 
-from jsonrpclib import config
-
-if sys.version_info < 3 :
+if sys.version_info[0] < 3 :
     # Python 2
-    StringTypes = types.StringTypes
+    import types
     TupleType = types.TupleType
     ListType = types.ListType
     DictType = types.DictType
 
-    iter_types = [
+    iter_types = (
         types.DictType,
         types.ListType,
         types.TupleType
-    ]
+    )
 
-    string_types = [
+    string_types = (
         types.StringType,
         types.UnicodeType
-    ]
+    )
 
-    numeric_types = [
+    numeric_types = (
         types.IntType,
         types.LongType,
         types.FloatType
-    ]
+    )
 
-    value_types = [
+    value_types = (
         types.BooleanType,
         types.NoneType
-    ]
+    )
 
 else:
     # Python 3
-    StringTypes = (str,)
     TupleType = tuple
     ListType = list
     DictType = dict
 
-    iter_types = [
+    iter_types = (
         dict,
         list,
         tuple
-    ]
+    )
 
-    string_types = [
+    string_types = (
         bytes,
         str
-    ]
+    )
 
-    numeric_types = [
+    numeric_types = (
         int,
         float
-    ]
+    )
 
-    value_types = [
+    value_types = (
         bool,
         type(None)
-    ]
-
+    )
 
 supported_types = iter_types + string_types + numeric_types + value_types
 invalid_module_chars = r'[^a-zA-Z0-9\_\.]'
@@ -128,20 +128,25 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
     return return_obj
 
 def load(obj):
+    # Primtive
     if type(obj) in string_types + numeric_types + value_types:
         return obj
-    if type(obj) is ListType:
+
+    # List
+    elif type(obj) in (ListType, TupleType):
         return_list = []
         for entry in obj:
             return_list.append(load(entry))
         return return_list
+
     # Otherwise, it's a dict type
-    if '__jsonclass__' not in obj.keys():
+    elif '__jsonclass__' not in obj.keys():
         return_dict = {}
         for key, value in obj.items():
             new_value = load(value)
             return_dict[key] = new_value
         return return_dict
+
     # It's a dict, and it's a __jsonclass__
     orig_module_name = obj['__jsonclass__'][0]
     params = obj['__jsonclass__'][1]

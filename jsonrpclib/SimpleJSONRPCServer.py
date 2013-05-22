@@ -4,12 +4,9 @@
 # Local modules
 import jsonrpclib
 from jsonrpclib import Fault
-from jsonrpclib.jsonrpc import USE_UNIX_SOCKETS
 
 # Standard library
 import socket
-import logging
-import os
 import traceback
 import sys
 
@@ -263,15 +260,7 @@ class SimpleJSONRPCServer(socketserver.TCPServer, SimpleJSONRPCDispatcher):
         # check Python version and decide on how to call it
         vi = sys.version_info
         self.address_family = address_family
-        if USE_UNIX_SOCKETS and address_family == socket.AF_UNIX:
-            # Unix sockets can't be bound if they already exist in the
-            # filesystem. The convention of e.g. X11 is to unlink
-            # before binding again.
-            if os.path.exists(addr):
-                try:
-                    os.unlink(addr)
-                except OSError:
-                    logging.warning("Could not unlink socket %s", addr)
+
         # if python 2.5 and lower
         if vi[0] < 3 and vi[1] < 6:
             socketserver.TCPServer.__init__(self, addr, requestHandler)
