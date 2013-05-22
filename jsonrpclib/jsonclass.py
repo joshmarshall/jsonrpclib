@@ -116,7 +116,8 @@ def load(obj):
         json_class_name = json_module_parts.pop()
         json_module_tree = '.'.join(json_module_parts)
         try:
-            temp_module = __import__(json_module_tree)
+            temp_module = __import__(json_module_tree,
+                                     fromlist=[json_class_name])
         except ImportError:
             raise TranslationError('Could not import %s from module %s.' %
                                    (json_class_name, json_module_tree))
