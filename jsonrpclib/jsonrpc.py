@@ -75,6 +75,10 @@ else:
 
 # ------------------------------------------------------------------------------
 # JSON library import
+
+# JSON class serialization
+from jsonrpclib import jsonclass
+
 try:
     # Using cjson
     import cjson
@@ -370,36 +374,96 @@ Server = ServerProxy
 # ------------------------------------------------------------------------------
 
 class Fault(object):
-    # JSON-RPC error class
+    """
+    JSON-RPC error class
+    """
     def __init__(self, code= -32000, message='Server error', rpcid=None):
+        """
+        Sets up the error description
+        
+        :param code: Fault code
+        :param message: Associated message
+        :param rpcid: Request ID
+        """
         self.faultCode = code
         self.faultString = message
         self.rpcid = rpcid
 
     def error(self):
+        """
+        Returns the error as a dictionary
+        
+        :returns: A {'code', 'message'} dictionary
+        """
         return {'code':self.faultCode, 'message':self.faultString}
 
     def response(self, rpcid=None, version=None):
+        """
+        Returns the error as a JSON-RPC response string
+        
+        :param rpcid: Forced request ID
+        :param version: JSON-RPC version
+        :return: A JSON-RPC response string
+        """
         if not version:
             version = config.version
+
         if rpcid:
             self.rpcid = rpcid
-        return dumps(
-            self, methodresponse=True, rpcid=self.rpcid, version=version
-        )
 
-    def __repr__(self):
-        return '<Fault %s: %s>' % (self.faultCode, self.faultString)
+        return dumps(self, methodresponse=True, rpcid=self.rpcid,
+                     version=version)
 
-class Payload(dict):
-    def __init__(self, rpcid=None, version=None):
-        dict.__init__(self)
+    def dump(self, rpcid=None, version=None):
+        """
+        Returns the error as a JSON-RPC response dictionary
+        
+        :param rpcid: Forced request ID
+        :param version: JSON-RPC version
+        :return: A JSON-RPC response dictionary
+        """
         if not version:
             version = config.version
+
+        if rpcid:
+            self.rpcid = rpcid
+
+        return dump(self, is_response=True, rpcid=self.rpcid,
+                    version=version)
+
+    def __repr__(self):
+        """
+        String representation
+        """
+        return '<Fault {0}: {1}>'.format(self.faultCode, self.faultString)
+
+
+class Payload(object):
+    """
+    JSON-RPC content handler
+    """
+    def __init__(self, rpcid=None, version=None):
+        """
+        Sets up the JSON-RPC handler
+        
+        :param rpcid: Request ID
+        :param version: JSON-RPC version
+        """
+        if not version:
+            version = config.version
+
         self.id = rpcid
         self.version = float(version)
 
+
     def request(self, method, params=[]):
+        """
+        Prepares a method call request
+        
+        :param method: Method name
+        :param params: Method parameters
+        :return: A JSON-RPC request dictionary
+        """
         if type(method) not in utils.StringTypes:
             raise ValueError('Method name must be a string.')
 
@@ -410,27 +474,58 @@ class Payload(dict):
         request = { 'id':self.id, 'method':method }
         if params:
             request['params'] = params
+
         if self.version >= 2:
             request['jsonrpc'] = str(self.version)
+
         return request
 
+
     def notify(self, method, params=[]):
+        """
+        Prepares a notification request
+        
+        :param method: Notification name
+        :param params: Notification parameters
+        :return: A JSON-RPC notification dictionary
+        """
+        # Prepare the request dictionary
         request = self.request(method, params)
+
+        # Remove the request ID, as it's a notification
         if self.version >= 2:
             del request['id']
         else:
             request['id'] = None
+
         return request
 
+
     def response(self, result=None):
+        """
+        Prepares a response dictionary
+        
+        :param result: The result of method call
+        :return: A JSON-RPC response dictionary
+        """
         response = {'result':result, 'id':self.id}
+
         if self.version >= 2:
             response['jsonrpc'] = str(self.version)
         else:
             response['error'] = None
+
         return response
 
+
     def error(self, code= -32000, message='Server error.'):
+        """
+        Prepares an error dictionary
+        
+        :param code: Error code
+        :param message: Error message
+        :return: A JSON-RPC error dictionary
+        """
         error = self.response()
         if self.version >= 2:
             del error['result']
@@ -439,82 +534,174 @@ class Payload(dict):
         error['error'] = {'code':code, 'message':message}
         return error
 
-def dumps(params=[], methodname=None, methodresponse=None,
-          encoding=None, rpcid=None, version=None, notify=None):
+# ------------------------------------------------------------------------------
+
+def dump(params=[], methodname=None, rpcid=None, version=None,
+         is_response=None, is_notify=None):
     """
-    This differs from the Python implementation in that it implements
-    the rpcid argument since the 2.0 spec requires it for responses.
+    Prepares a JSON-RPC dictionary (request, notification, response or error)
+    
+    :param params: Method parameters (if a method name is given) or a Fault
+    :param methodname: Method name
+    :param rpcid: Request ID
+    :param version: JSON-RPC version
+    :param is_response: If True, this is a response dictionary
+    :param is_notify: If True, this is a notification request
+    :return: A JSON-RPC dictionary
     """
+    # Default version
     if not version:
         version = config.version
-    valid_params = (utils.TupleType, utils.ListType, utils.DictType)
+
+    # Validate method name and parameters
+    valid_params = (utils.TupleType, utils.ListType, utils.DictType, Fault)
     if methodname in utils.StringTypes and \
-            type(params) not in valid_params and \
-            not isinstance(params, Fault):
+    not isinstance(params, valid_params):
         """
         If a method, and params are not in a listish or a Fault,
         error out.
         """
-        raise TypeError('Params must be a dict, list, tuple or Fault ' +
-                        'instance.')
-    # Begin parsing object
+        raise TypeError('Params must be a dict, list, tuple or Fault instance.')
+
+    # Prepares the JSON-RPC content
     payload = Payload(rpcid=rpcid, version=version)
-    if not encoding:
-        encoding = 'utf-8'
+
     if type(params) is Fault:
-        response = payload.error(params.faultCode, params.faultString)
-        return jdumps(response, encoding=encoding)
-    if type(methodname) not in utils.StringTypes and methodresponse != True:
-        raise ValueError('Method name must be a string, or methodresponse ' +
+        # Prepare an error dictionary
+        return payload.error(params.faultCode, params.faultString)
+
+    if type(methodname) not in utils.StringTypes and not is_response:
+        # Neither a request nor a response
+        raise ValueError('Method name must be a string, or is_response ' \
                          'must be set to True.')
-    if config.use_jsonclass == True:
-        from jsonrpclib import jsonclass
+
+    if config.use_jsonclass:
+        # Use jsonclass to convert the parameters
         params = jsonclass.dump(params)
-    if methodresponse is True:
+
+    if is_response:
+        # Prepare a response dictionary
         if rpcid is None:
+            # A response must have a request ID
             raise ValueError('A method response must have an rpcid.')
-        response = payload.response(params)
-        return jdumps(response, encoding=encoding)
-    request = None
-    if notify == True:
-        request = payload.notify(methodname, params)
+        return payload.response(params)
+
+    if is_notify:
+        # Prepare a notification dictionary
+        return payload.notify(methodname, params)
+
     else:
-        request = payload.request(methodname, params)
+        # Prepare a method call dictionary
+        return payload.request(methodname, params)
+
+
+def dumps(params=[], methodname=None, methodresponse=None,
+          encoding=None, rpcid=None, version=None, notify=None):
+    """
+    Prepares a JSON-RPC request/response string
+    
+    :param params: Method parameters (if a method name is given) or a Fault
+    :param methodname: Method name
+    :param methodresponse: If True, this is a response dictionary
+    :param encoding: Result string encoding
+    :param rpcid: Request ID
+    :param version: JSON-RPC version
+    :param notify: If True, this is a notification request
+    :return: A JSON-RPC dictionary
+    """
+    # Prepare the dictionary
+    request = dump(params, methodname, rpcid, version, methodresponse, notify)
+
+    # Set the default encoding
+    if not encoding:
+        encoding = "UTF-8"
+
+    # Returns it as a JSON string
     return jdumps(request, encoding=encoding)
 
-def loads(data):
+
+def load(data):
     """
-    This differs from the Python implementation, in that it returns
-    the request structure in Dict format instead of the method, params.
-    It will return a list in the case of a batch request / response.
+    Loads a JSON-RPC request/response dictionary. Calls jsonclass to load beans
+    
+    :param data: A JSON-RPC dictionary
+    :return: A parsed dictionary or None
     """
-    if data == '':
-        # notification
+    if data is None:
+        # Notification
         return None
-    result = jloads(data)
+
     # if the above raises an error, the implementing server code
     # should return something like the following:
     # { 'jsonrpc':'2.0', 'error': fault.error(), id: None }
-    if config.use_jsonclass == True:
-        from jsonrpclib import jsonclass
-        result = jsonclass.load(result)
-    return result
+    if config.use_jsonclass:
+        # Convert beans
+        data = jsonclass.load(data)
+
+    return data
+
+
+def loads(data):
+    """
+    Loads a JSON-RPC request/response string. Calls jsonclass to load beans
+    
+    :param data: A JSON-RPC string
+    :return: A parsed dictionary or None
+    """
+    if data == '':
+        # Notification
+        return None
+
+    # Parse the JSON dictionary
+    result = jloads(data)
+
+    # Load the beans
+    return load(result)
+
+# ------------------------------------------------------------------------------
 
 def check_for_errors(result):
+    """
+    Checks if a result dictionary signals an error
+    
+    :param result: A result dictionary
+    :raise TypeError: Invalid parameter
+    :raise NotImplementedError: Unknown JSON-RPC version
+    :raise ValueError: Invalid dictionary content
+    :raise ProtocolError: An error occurred on the server side
+    :return: The result parameter
+    """
     if not result:
         # Notification
         return result
+
     if type(result) is not utils.DictType:
+        # Invalid argument
         raise TypeError('Response is not a dict.')
-    if 'jsonrpc' in result.keys() and float(result['jsonrpc']) > 2.0:
+
+    if 'jsonrpc' in result and float(result['jsonrpc']) > 2.0:
+        # Unknown JSON-RPC version
         raise NotImplementedError('JSON-RPC version not yet supported.')
-    if 'result' not in result.keys() and 'error' not in result.keys():
+
+    if 'result' not in result and 'error' not in result:
+        # Invalid dictionary content
         raise ValueError('Response does not have a result or error key.')
-    if 'error' in result.keys() and result['error'] != None:
+
+    if 'error' in result and result['error']:
+        # Server-side error
         code = result['error']['code']
-        message = result['error']['message']
+        try:
+            # Get the message (jsonrpclib)
+            message = result['error']['message']
+
+        except KeyError:
+            # Get the trace (jabsorb)
+            message = result['error'].get('trace', '<no error message>')
+
         raise ProtocolError((code, message))
+
     return result
+
 
 def isbatch(result):
     if type(result) not in (utils.ListType, utils.TupleType):
@@ -533,11 +720,20 @@ def isbatch(result):
         return False
     return True
 
+
 def isnotification(request):
-    if 'id' not in request.keys():
+    """
+    Tests if the given request is a notification
+    
+    :param request: A request dictionary
+    :return: True if the request is a notification
+    """
+    if 'id' not in request:
         # 2.0 notification
         return True
-    if request['id'] == None:
+
+    if request['id'] is None:
         # 1.0 notification
         return True
+
     return False
