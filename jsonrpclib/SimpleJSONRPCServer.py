@@ -86,6 +86,13 @@ def validate_request(request):
 
 # ------------------------------------------------------------------------------
 
+class NoMulticallResult(Exception):
+    """
+    No result in multicall
+    """
+    pass
+
+
 class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
 
     def __init__(self, encoding=None):
@@ -109,23 +116,23 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
         
         :param request: JSON-RPC request dictionary (or list of)
         :param dispatch_method: Custom dispatch method (for method resolution)
-        :return: A JSON-RPC dictionary (or an array of) or an empty string
+        :return: A JSON-RPC dictionary (or an array of) or None if the request
+                 was a notification
+        :raise NoMulticallResult: No result in batch
         """
         if not request:
             # Invalid request dictionary
             fault = Fault(-32600, 'Request invalid -- no request data.')
             return fault.dump()
 
-        response = None
-
         if type(request) is utils.ListType:
             # This SHOULD be a batch, by spec
-            response = []
+            responses = []
             for req_entry in request:
                 # Validate the request
                 result = validate_request(req_entry)
                 if type(result) is Fault:
-                    response.append(result.dump())
+                    responses.append(result.dump())
                     continue
 
                 # Call the method
@@ -134,14 +141,16 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
 
                 # Store its result
                 if isinstance(resp_entry, Fault):
-                    response.append(resp_entry.dump())
+                    responses.append(resp_entry.dump())
 
                 elif resp_entry is not None:
-                    response.append(resp_entry)
+                    responses.append(resp_entry)
 
-            if len(response) == 0:
-                # Return an empty string (jsonrpclib internal behaviour)
-                return ''
+            if len(responses) == 0:
+                # No non-None result
+                raise NoMulticallResult("No result")
+
+            return responses
 
         else:
             # Single call
@@ -155,7 +164,7 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
             if isinstance(response, Fault):
                 return response.dump()
 
-        return response
+            return response
 
 
     def _marshaled_dispatch(self, data, dispatch_method=None):
@@ -177,13 +186,20 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
             return fault.response()
 
         # Get the response dictionary
-        response = self._unmarshaled_dispatch(request, dispatch_method)
-        if response not in (None, ''):
-            # Returns its string form
-            return jsonrpclib.jdumps(response, self.encoding)
+        try:
+            response = self._unmarshaled_dispatch(request, dispatch_method)
 
-        else:
-            return response
+            if response is not None:
+                # Compute the string representation of the dictionary/list
+                return jsonrpclib.jdumps(response, self.encoding)
+
+            else:
+                # No result (notification)
+                return ''
+
+        except NoMulticallResult:
+            # Return an empty string (jsonrpclib internal behaviour)
+            return ''
 
 
     def _marshaled_single_dispatch(self, request, dispatch_method=None):
@@ -192,7 +208,8 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
         
         :param request: A validated request dictionary
         :param dispatch_method: Custom dispatch method (for method resolution)
-        :return: A JSON-RPC response dictionary
+        :return: A JSON-RPC response dictionary, or None if it was a
+                 notification request
         """
         # TODO - Use the multiprocessing and skip the response if
         # it is a notification
@@ -211,8 +228,9 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
             fault = Fault(-32603, '{0}:{1}'.format(exc_type, exc_value))
             return fault.dump()
 
-        if 'id' not in request or not request['id']:
+        if 'id' not in request or request['id'] in (None, ''):
             # It's a notification, no result needed
+            # Do not use 'not id' as it might be the integer 0
             return None
 
         # Prepare a JSON-RPC dictionary
