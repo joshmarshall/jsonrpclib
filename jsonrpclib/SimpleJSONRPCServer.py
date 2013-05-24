@@ -53,7 +53,7 @@ def validate_request(request):
     :param request: A request dictionary
     :return: True if the dictionary is valid, else a Fault object
     """
-    if type(request) is not utils.DictType:
+    if not isinstance(request, utils.DictType):
         # Invalid request type
         return Fault(-32600, 'Request must be dict, not {0}' \
                      .format(type(request).__name__))
