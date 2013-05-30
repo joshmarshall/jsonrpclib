@@ -1,4 +1,10 @@
+# Bytecoded form
 *.pyc
 __pycache__
+
+# When installed in develop mode
+*.egg-info/
+
+# setup.py folders
 build/*
 dist/*
