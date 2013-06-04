@@ -157,15 +157,23 @@ class JSONTarget(object):
         self.data = []
 
     def feed(self, data):
-        try:
-            data = utils.from_bytes(data)
-        except:
-            pass
-
+        # Store raw data: it might not contain whole wide-character
         self.data.append(data)
 
     def close(self):
-        return ''.join(self.data)
+        if not self.data:
+            return ''
+
+        else:
+            data = type(self.data[0])().join(self.data)
+            try:
+                # Convert the whole final string
+                data = utils.from_bytes(data)
+            except:
+                # Try a pass-through
+                pass
+
+            return data
 
 class Transport(TransportMixIn, XMLTransport):
     pass
