@@ -8,25 +8,12 @@ class History(object):
     each request cycle in order to keep it from clogging 
     memory.
     """
-    # The singleton
-    _instance = None
-
     def __init__(self):
         """
         Sets up members
         """
         self.requests = []
         self.responses = []
-
-    @classmethod
-    def instance(cls):
-        """
-        Returns/Creates the instance of History
-        """
-        if not cls._instance:
-            cls._instance = cls()
-
-        return cls._instance
 
     def add_response(self, response_obj):
         """

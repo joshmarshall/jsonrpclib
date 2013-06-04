@@ -49,7 +49,7 @@ See http://code.google.com/p/jsonrpclib/ for more info.
 """
 
 # Library includes
-from jsonrpclib import config, history, utils
+from jsonrpclib import config, utils
 
 # Standard library
 import sys
@@ -190,10 +190,21 @@ class ServerProxy(XMLServerProxy):
     """
 
     def __init__(self, uri, transport=None, encoding=None,
-                 verbose=0, version=None):
+                 verbose=0, version=None, history=None):
+        """
+        Sets up the server proxy
+        
+        :param uri: Request URI
+        :param transport: Custom transport handler
+        :param encoding: Specified encoding
+        :param verbose: Log verbosity level
+        :param version: JSON-RPC specification version
+        :param history: History object (for tests)
+        """
         if not version:
             version = config.version
         self.__version = version
+
         schema, uri = splittype(uri)
         if schema not in ('http', 'https'):
             raise IOError('Unsupported JSON-RPC protocol.')
@@ -209,8 +220,10 @@ class ServerProxy(XMLServerProxy):
             else:
                 transport = Transport()
         self.__transport = transport
+
         self.__encoding = encoding
         self.__verbose = verbose
+        self.__history = history
 
     def _request(self, methodname, params, rpcid=None):
         request = dumps(params, methodname, encoding=self.__encoding,
@@ -227,7 +240,8 @@ class ServerProxy(XMLServerProxy):
         return
 
     def _run_request(self, request, notify=None):
-        history.add_request(request)
+        if self.__history is not None:
+            self.__history.add_request(request)
 
         response = self.__transport.request(
             self.__host,
@@ -242,7 +256,9 @@ class ServerProxy(XMLServerProxy):
         # the response object, or expect the Server to be
         # outputting the response appropriately?
 
-        history.add_response(response)
+        if self.__history is not None:
+            self.__history.add_response(response)
+
         if not response:
             return None
         return_obj = loads(response)

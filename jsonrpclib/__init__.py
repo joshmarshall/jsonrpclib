@@ -5,10 +5,6 @@
 from jsonrpclib.config import Config
 config = Config.instance()
 
-# Create a history instance
-from jsonrpclib.history import History
-history = History.instance()
-
 # Easy access to utility methods
 from jsonrpclib.jsonrpc import Server, MultiCall, Fault, ProtocolError
 from jsonrpclib.jsonrpc import loads, dumps, load, dump

@@ -19,12 +19,13 @@ TODO:
 * Implement JSONClass, History, Config tests
 """
 
-from jsonrpclib import Server, MultiCall, history, ProtocolError
+from jsonrpclib import Server, MultiCall, ProtocolError
 from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
 from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCRequestHandler
 import socket
 import unittest
 import time
+import jsonrpclib.history
 try:
     import json
 except ImportError:
@@ -41,8 +42,10 @@ class TestCompatibility(unittest.TestCase):
 
     def setUp(self):
         self.port = PORTS.pop()
+        self.history = jsonrpclib.history.History()
         self.server = server_set_up(addr=('', self.port))
-        self.client = Server('http://localhost:%d' % self.port)
+        self.client = Server('http://localhost:{0}'.format(self.port),
+                             history=self.history)
 
     # v1 tests forthcoming
 
@@ -53,8 +56,8 @@ class TestCompatibility(unittest.TestCase):
         self.assertTrue(result == -19)
         result = self.client.subtract(42, 23)
         self.assertTrue(result == 19)
-        request = json.loads(history.request)
-        response = json.loads(history.response)
+        request = json.loads(self.history.request)
+        response = json.loads(self.history.response)
         verify_request = {
             "jsonrpc": "2.0", "method": "subtract",
             "params": [42, 23], "id": request['id']
@@ -71,8 +74,8 @@ class TestCompatibility(unittest.TestCase):
         self.assertTrue(result == 19)
         result = self.client.subtract(minuend=42, subtrahend=23)
         self.assertTrue(result == 19)
-        request = json.loads(history.request)
-        response = json.loads(history.response)
+        request = json.loads(self.history.request)
+        response = json.loads(self.history.response)
         verify_request = {
             "jsonrpc": "2.0", "method": "subtract",
             "params": {"subtrahend": 23, "minuend": 42},
@@ -88,8 +91,8 @@ class TestCompatibility(unittest.TestCase):
         """ Testing a notification (response should be null) """
         result = self.client._notify.update(1, 2, 3, 4, 5)
         self.assertTrue(result == None)
-        request = json.loads(history.request)
-        response = history.response
+        request = json.loads(self.history.request)
+        response = self.history.response
         verify_request = {
             "jsonrpc": "2.0", "method": "update", "params": [1, 2, 3, 4, 5]
         }
@@ -99,8 +102,8 @@ class TestCompatibility(unittest.TestCase):
 
     def test_non_existent_method(self):
         self.assertRaises(ProtocolError, self.client.foobar)
-        request = json.loads(history.request)
-        response = json.loads(history.response)
+        request = json.loads(self.history.request)
+        response = json.loads(self.history.response)
         verify_request = {
             "jsonrpc": "2.0", "method": "foobar", "id": request['id']
         }
@@ -117,7 +120,7 @@ class TestCompatibility(unittest.TestCase):
         invalid_json = '{"jsonrpc": "2.0", "method": "foobar, ' + \
             '"params": "bar", "baz]'
         response = self.client._run_request(invalid_json)
-        response = json.loads(history.response)
+        response = json.loads(self.history.response)
         verify_response = json.loads(
             '{"jsonrpc": "2.0", "error": {"code": -32700,' +
             ' "message": "Parse error."}, "id": null}'
@@ -128,7 +131,7 @@ class TestCompatibility(unittest.TestCase):
     def test_invalid_request(self):
         invalid_request = '{"jsonrpc": "2.0", "method": 1, "params": "bar"}'
         response = self.client._run_request(invalid_request)
-        response = json.loads(history.response)
+        response = json.loads(self.history.response)
         verify_response = json.loads(
             '{"jsonrpc": "2.0", "error": {"code": -32600, ' +
             '"message": "Invalid Request."}, "id": null}'
@@ -140,7 +143,7 @@ class TestCompatibility(unittest.TestCase):
         invalid_request = '[ {"jsonrpc": "2.0", "method": "sum", ' + \
             '"params": [1,2,4], "id": "1"},{"jsonrpc": "2.0", "method" ]'
         response = self.client._run_request(invalid_request)
-        response = json.loads(history.response)
+        response = json.loads(self.history.response)
         verify_response = json.loads(
             '{"jsonrpc": "2.0", "error": {"code": -32700,' +
             '"message": "Parse error."}, "id": null}'
@@ -151,7 +154,7 @@ class TestCompatibility(unittest.TestCase):
     def test_empty_array(self):
         invalid_request = '[]'
         response = self.client._run_request(invalid_request)
-        response = json.loads(history.response)
+        response = json.loads(self.history.response)
         verify_response = json.loads(
             '{"jsonrpc": "2.0", "error": {"code": -32600, ' +
             '"message": "Invalid Request."}, "id": null}'
@@ -163,7 +166,7 @@ class TestCompatibility(unittest.TestCase):
         invalid_request = '[1,2]'
         request_obj = json.loads(invalid_request)
         response = self.client._run_request(invalid_request)
-        response = json.loads(history.response)
+        response = json.loads(self.history.response)
         self.assertTrue(len(response) == len(request_obj))
         for resp in response:
             verify_resp = json.loads(
@@ -243,13 +246,13 @@ class TestCompatibility(unittest.TestCase):
             '"params": [1,2,4]},{"jsonrpc": "2.0", ' +
             '"method": "notify_hello", "params": [7]}]'
         )
-        request = json.loads(history.request)
+        request = json.loads(self.history.request)
         self.assertTrue(len(request) == len(valid_request))
         for i in range(len(request)):
             req = request[i]
             valid_req = valid_request[i]
             self.assertTrue(req == valid_req)
-        self.assertTrue(history.response == '')
+        self.assertTrue(self.history.response == '')
 
 class InternalTests(unittest.TestCase):
     """ 
@@ -262,10 +265,12 @@ class InternalTests(unittest.TestCase):
 
     def setUp(self):
         self.port = PORTS.pop()
+        self.history = jsonrpclib.history.History()
         self.server = server_set_up(addr=('', self.port))
 
     def get_client(self):
-        return Server('http://localhost:%d' % self.port)
+        return Server('http://localhost:{0}'.format(self.port),
+                      history=self.history)
 
     def get_multicall_client(self):
         server = self.get_client()
@@ -298,8 +303,8 @@ class InternalTests(unittest.TestCase):
     def test_single_namespace(self):
         client = self.get_client()
         response = client.namespace.sum(1, 2, 4)
-        request = json.loads(history.request)
-        response = json.loads(history.response)
+        request = json.loads(self.history.request)
+        response = json.loads(self.history.response)
         verify_request = {
             "jsonrpc": "2.0", "params": [1, 2, 4],
             "id": "5", "method": "namespace.sum"
