@@ -8,11 +8,17 @@ from jsonrpclib import config, utils
 import inspect
 import re
 
+# Supported transmitted code
 supported_types = utils.iter_types + utils.primitive_types
+
+# Regex of invalid module characters
 invalid_module_chars = r'[^a-zA-Z0-9\_\.]'
 
 
 class TranslationError(Exception):
+    """
+    Unmarshaling exception
+    """
     pass
 
 
@@ -23,6 +29,10 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
     Doesn't change primitive types.
     
     :param obj: An object to convert
+    :param serialize_method: Custom serialization method
+    :param ignore_attribute: Name of the object attribute containing the names
+                             of members to ignore
+    :param ignore: A list of members to ignore
     :return: A JSON-RPC compliant object
     """
     if not serialize_method:
@@ -38,31 +48,36 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
 
     # Iterative
     if isinstance(obj, utils.iter_types):
-        if isinstance(obj, (utils.ListType, utils.TupleType)):
-            new_obj = []
-            for item in obj:
-                new_obj.append(dump(item, serialize_method,
-                                     ignore_attribute, ignore))
-            if isinstance(obj, utils.TupleType):
-                new_obj = tuple(new_obj)
-            return new_obj
 
-        # It's a dict...
-        else:
+        if isinstance(obj, utils.DictType):
+            # It's a dictionary
             new_obj = {}
             for key, value in obj.items():
                 new_obj[key] = dump(value, serialize_method,
                                      ignore_attribute, ignore)
             return new_obj
 
+        else:
+            # ... list or tuple
+            new_obj = []
+            for item in obj:
+                new_obj.append(dump(item, serialize_method,
+                                     ignore_attribute, ignore))
+
+            if isinstance(obj, utils.TupleType):
+                # Keep the "tuple" type
+                new_obj = tuple(new_obj)
+
+            return new_obj
+
     # It's not a standard type, so it needs __jsonclass__
     module_name = inspect.getmodule(obj).__name__
-    class_name = obj.__class__.__name__
-    json_class = class_name
+    json_class = obj.__class__.__name__
 
-    if module_name not in ['', '__main__']:
+    if module_name not in ('', '__main__'):
         json_class = '{0}.{1}'.format(module_name, json_class)
 
+    # Keep the class name in the returned object
     return_obj = {"__jsonclass__": [json_class, ]}
 
     # If a serialization method is defined..
@@ -83,11 +98,11 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
         attrs = {}
         ignore_list = getattr(obj, ignore_attribute, []) + ignore
         for attr_name, attr_value in obj.__dict__.items():
-            if type(attr_value) in supported_types and \
+            if isinstance(attr_value, supported_types) and \
                     attr_name not in ignore_list and \
                     attr_value not in ignore_list:
                 attrs[attr_name] = dump(attr_value, serialize_method,
-                                         ignore_attribute, ignore)
+                                        ignore_attribute, ignore)
         return_obj.update(attrs)
         return return_obj
 
@@ -106,7 +121,11 @@ def load(obj):
 
     # List
     elif isinstance(obj, (utils.ListType, utils.TupleType)):
-        return [load(entry) for entry in obj]
+        return_obj = [load(entry) for entry in obj]
+        if isinstance(obj, utils.TupleType):
+            return_obj = tuple(return_obj)
+
+        return return_obj
 
     # Otherwise, it's a dict type
     elif '__jsonclass__' not in obj.keys():
@@ -147,9 +166,15 @@ def load(obj):
             temp_module = __import__(json_module_tree,
                                      fromlist=[json_class_name])
         except ImportError:
-            raise TranslationError('Could not import %s from module %s.' %
-                                   (json_class_name, json_module_tree))
-        json_class = getattr(temp_module, json_class_name)
+            raise TranslationError('Could not import {0} from module {1}.' \
+                                   .format(json_class_name, json_module_tree))
+
+        try:
+            json_class = getattr(temp_module, json_class_name)
+
+        except AttributeError:
+            raise TranslationError("Unknown class {0}.{1}." \
+                                   .format(json_module_tree, json_class_name))
 
     # Create the object
     new_obj = None

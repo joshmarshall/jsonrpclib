@@ -55,7 +55,7 @@ def validate_request(request):
     """
     if not isinstance(request, utils.DictType):
         # Invalid request type
-        return Fault(-32600, 'Request must be dict, not {0}' \
+        return Fault(-32600, 'Request must be a dict, not {0}' \
                      .format(type(request).__name__))
 
     # Get the request ID
@@ -75,11 +75,11 @@ def validate_request(request):
     params = request.get('params')
     param_types = (utils.ListType, utils.DictType, utils.TupleType)
 
-    if not method or type(method) not in utils.StringTypes or \
-        type(params) not in param_types:
+    if not method or not isinstance(method, utils.StringTypes) or \
+    not isinstance(params, param_types):
         # Invalid type of method name or parameters
         return Fault(-32600, 'Invalid request parameters or method.',
-                      rpcid=rpcid)
+                     rpcid=rpcid)
 
     # Valid request
     return True
@@ -182,7 +182,8 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
 
         except Exception as ex:
             # Parsing/loading error
-            fault = Fault(-32700, 'Request {0} invalid. ({1})'.format(data, ex))
+            fault = Fault(-32700, 'Request {0} invalid. ({1}:{2})' \
+                          .format(data, type(ex).__name__, ex))
             return fault.response()
 
         # Get the response dictionary
@@ -283,9 +284,9 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
                 else:
                     return func(**params)
 
-            except TypeError:
+            except TypeError as ex:
                 # Maybe the parameters are wrong
-                return Fault(-32602, 'Invalid parameters.')
+                return Fault(-32602, 'Invalid parameters: {0}'.format(ex))
 
             except:
                 # Method exception
