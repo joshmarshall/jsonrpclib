@@ -398,5 +398,5 @@ if __name__ == '__main__':
     print("===============================================================")
     print("  NOTE: There may be threading exceptions after tests finish.  ")
     print("===============================================================")
-    time.sleep(2)
+    time.sleep(.5)
     unittest.main()
