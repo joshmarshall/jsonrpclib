@@ -401,7 +401,7 @@ class Fault(object):
     """
     JSON-RPC error class
     """
-    def __init__(self, code= -32000, message='Server error', rpcid=None):
+    def __init__(self, code=-32000, message='Server error', rpcid=None):
         """
         Sets up the error description
         
@@ -496,7 +496,7 @@ class Payload(object):
             self.id = str(uuid.uuid4())
 
         request = { 'id':self.id, 'method':method }
-        if params:
+        if params or self.version < 1.1:
             request['params'] = params
 
         if self.version >= 2:
@@ -542,7 +542,7 @@ class Payload(object):
         return response
 
 
-    def error(self, code= -32000, message='Server error.'):
+    def error(self, code=-32000, message='Server error.'):
         """
         Prepares an error dictionary
         
