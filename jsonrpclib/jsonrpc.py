@@ -156,7 +156,7 @@ class TransportMixIn(object):
         # Convert the body first
         request_body = utils.to_bytes(request_body)
 
-        connection.putheader("Content-Type", "application/json-rpc")
+        connection.putheader("Content-Type", config.content_type)
         connection.putheader("Content-Length", str(len(request_body)))
         connection.endheaders()
         if request_body:

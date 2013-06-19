@@ -3,7 +3,7 @@
 
 # Local modules
 import jsonrpclib
-from jsonrpclib import Fault, utils
+from jsonrpclib import Fault, utils, config
 
 # Standard library
 import socket
@@ -346,7 +346,7 @@ class SimpleJSONRPCRequestHandler(xmlrpcserver.SimpleXMLRPCRequestHandler):
         response = utils.to_bytes(response)
 
         # Send it
-        self.send_header("Content-type", "application/json-rpc")
+        self.send_header("Content-type", config.content_type)
         self.send_header("Content-length", str(len(response)))
         self.end_headers()
         self.wfile.write(response)
@@ -411,8 +411,8 @@ class CGIJSONRPCRequestHandler(SimpleJSONRPCDispatcher):
         Handle a JSON-RPC request
         """
         response = self._marshaled_dispatch(request_text)
-        sys.stdout.write('Content-Type: application/json-rpc\r\n')
-        sys.stdout.write('Content-Length: %d\r\n' % len(response))
+        sys.stdout.write('Content-Type: {0}\r\n'.format(config.content_type))
+        sys.stdout.write('Content-Length: {0:d}\r\n'.format(len(response)))
         sys.stdout.write('\r\n')
         sys.stdout.write(response)
 

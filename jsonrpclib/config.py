@@ -38,6 +38,11 @@ class Config(object):
     user_agent = 'jsonrpclib-pelix/0.1 (Python {0})' \
                  .format('.'.join(str(ver) for ver in sys.version_info[0:3]))
 
+    # Content-type to use. According to the JSON-RPC specification,
+    # it SHOULD be 'application/json-rpc'
+    # but MAY be 'application/json' or 'application/jsonrequest'
+    content_type = "application/json-rpc"
+
     # "Singleton" of Config
     _instance = None
 
