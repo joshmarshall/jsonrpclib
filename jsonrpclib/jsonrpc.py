@@ -120,11 +120,31 @@ except ImportError:
 # XMLRPClib re-implementations
 
 class ProtocolError(Exception):
+    """
+    JSON-RPC error
+    
+    ProtocolError[0] can be:
+    * an error message (string)
+    * a (code, message) tuple
+    """
     pass
 
 class AppError(ProtocolError):
+    """
+    Application error: the error code is not in the pre-defined ones
+    
+    AppError[0][0]: Error code
+    AppError[0][1]: Error message or trace
+    AppError[0][2]: Associated data
+    """
     def data(self):
+        """
+        Retrieves the value found in the 'data' entry of the error, or None
+        
+        :return: The data associated to the error, or None
+        """
         return self[0][2]
+
 
 class TransportMixIn(object):
     """ Just extends the XMLRPC transport where necessary. """
