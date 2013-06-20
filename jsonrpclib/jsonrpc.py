@@ -52,6 +52,7 @@ See http://code.google.com/p/jsonrpclib/ for more info.
 from jsonrpclib import config, utils
 
 # Standard library
+import contextlib
 import sys
 import uuid
 
@@ -152,12 +153,70 @@ class TransportMixIn(object):
     # for Python 2.7 support
     _connection = None
 
+    # Additional headers: list of dictionaries
+    additional_headers = []
+
+    # List of non-overridable headers
+    # Use the configuration to change the content-type
+    readonly_headers = ('content-length', 'content-type')
+
+    def push_headers(self, headers):
+        """
+        Adds a dictionary of headers to the additional headers list
+        
+        :param headers: A dictionary
+        """
+        self.additional_headers.append(headers)
+
+    def pop_headers(self, headers):
+        """
+        Removes the given dictionary from the additional headers list. 
+        Also validates that given headers are on top of the stack
+        
+        :param headers: Headers to remove
+        :raise AssertionError: The given dictionary is not on the latest stored
+                               in the additional headers list
+        """
+        assert self.additional_headers[-1] == headers
+        self.additional_headers.pop()
+
+
+    def emit_additional_headers(self, connection):
+        """
+        Puts headers as is in the request, filtered read only headers
+        
+        :param connection: The request connection
+        """
+        additional_headers = {}
+
+        # Prepare the merged dictionary
+        for headers in self.additional_headers:
+            additional_headers.update(headers)
+
+        # Remove forbidden keys
+        for forbidden in self.readonly_headers:
+            additional_headers.pop(forbidden, None)
+
+        # Reversed order: in the case of multiple headers value definition,
+        # the latest pushed has priority
+        for key, value in additional_headers.items():
+            key = str(key)
+            if key.lower() not in self.readonly_headers:
+                # Only accept replaceable headers
+                connection.putheader(str(key), str(value))
+
+
     def send_content(self, connection, request_body):
         # Convert the body first
         request_body = utils.to_bytes(request_body)
 
+        # "static" headers
         connection.putheader("Content-Type", config.content_type)
         connection.putheader("Content-Length", str(len(request_body)))
+
+        # Emit additional headers here in order not to override content-length
+        self.emit_additional_headers(connection)
+
         connection.endheaders()
         if request_body:
             connection.send(request_body)
@@ -214,7 +273,7 @@ class ServerProxy(XMLServerProxy):
     """
 
     def __init__(self, uri, transport=None, encoding=None,
-                 verbose=0, version=None, history=None):
+                 verbose=0, version=None, headers=None, history=None):
         """
         Sets up the server proxy
         
@@ -223,6 +282,7 @@ class ServerProxy(XMLServerProxy):
         :param encoding: Specified encoding
         :param verbose: Log verbosity level
         :param version: JSON-RPC specification version
+        :param headers: Custom additional headers for each request
         :param history: History object (for tests)
         """
         if not version:
@@ -248,6 +308,9 @@ class ServerProxy(XMLServerProxy):
         self.__encoding = encoding
         self.__verbose = verbose
         self.__history = history
+
+        # Global custom headers are injected into Transport
+        self.__transport.push_headers(headers or {})
 
     def _request(self, methodname, params, rpcid=None):
         request = dumps(params, methodname, encoding=self.__encoding,
@@ -296,6 +359,21 @@ class ServerProxy(XMLServerProxy):
     def _notify(self):
         # Just like __getattr__, but with notify namespace.
         return _Notify(self._request_notify)
+
+    @contextlib.contextmanager
+    def _additional_headers(self, headers):
+        """
+            Allow to specify additional headers, to be added inside the with
+            block. Example of usage:
+
+            >>> with client._additional_headers({'X-Test' : 'Test'}) as new_client:
+            ...     new_client.method()
+            ...
+            >>> # Here old headers are restored
+        """
+        self.__transport.push_headers(headers)
+        yield self
+        self.__transport.pop_headers(headers)
 
 # ------------------------------------------------------------------------------
 
