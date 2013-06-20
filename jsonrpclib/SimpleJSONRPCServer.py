@@ -1,9 +1,17 @@
 #!/usr/bin/python
 # -- Content-Encoding: UTF-8 --
+"""
+Defines a request dispatcher, a HTTP request handler, a HTTP server and a
+CGI request handler.
+"""
 
+__version__ = "0.1.5"
+
+# ------------------------------------------------------------------------------
 # Local modules
+from jsonrpclib import Fault, config
 import jsonrpclib
-from jsonrpclib import Fault, utils, config
+import jsonrpclib.utils as utils
 
 # Standard library
 import socket

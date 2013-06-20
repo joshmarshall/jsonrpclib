@@ -1,5 +1,12 @@
 #!/usr/bin/python
 # -- Content-Encoding: UTF-8 --
+"""
+The history module.
+"""
+
+__version__ = "0.1.5"
+
+# ------------------------------------------------------------------------------
 
 class History(object):
     """

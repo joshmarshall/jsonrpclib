@@ -1,12 +1,22 @@
 #!/usr/bin/python
 # -- Content-Encoding: UTF-8 --
+"""
+The serialization module
+"""
+
+__version__ = "0.1.5"
+
+# ------------------------------------------------------------------------------
 
 # Local package
-from jsonrpclib import config, utils
+from jsonrpclib import config
+import jsonrpclib.utils as utils
 
 # Standard library
 import inspect
 import re
+
+# ------------------------------------------------------------------------------
 
 # Supported transmitted code
 supported_types = utils.iter_types + utils.primitive_types
@@ -14,6 +24,7 @@ supported_types = utils.iter_types + utils.primitive_types
 # Regex of invalid module characters
 invalid_module_chars = r'[^a-zA-Z0-9\_\.]'
 
+# ------------------------------------------------------------------------------
 
 class TranslationError(Exception):
     """
@@ -21,6 +32,7 @@ class TranslationError(Exception):
     """
     pass
 
+# ------------------------------------------------------------------------------
 
 def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
     """

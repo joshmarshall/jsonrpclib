@@ -48,8 +48,13 @@ appropriately.
 See http://code.google.com/p/jsonrpclib/ for more info.
 """
 
+__version__ = "0.1.5"
+
+# ------------------------------------------------------------------------------
+
 # Library includes
-from jsonrpclib import config, utils
+from jsonrpclib import config
+import jsonrpclib.utils as utils
 
 # Standard library
 import contextlib
