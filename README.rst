@@ -23,6 +23,21 @@ Services, but it is **not** a Pelix specific implementation.
 * It is now possible to use the dispatch_method argument while extending
   the SimpleJSONRPCDispatcher, to use a custom dispatcher.
   This allows to use this package by Pelix Remote Services.
+* The modifications added in other forks of this project have been added:
+
+  * From https://github.com/drdaeman/jsonrpclib:
+
+    * Improved JSON-RPC 1.0 support
+    * Less strict error response handling
+
+  * From https://github.com/tuomassalo/jsonrpclib:
+
+    * In case of a non-pre-defined error, raise an AppError and give access to
+      *error.data*
+
+  * From https://github.com/dejw/jsonrpclib:
+
+    * Custom headers can be sent with request and associated tests
 
 * The support for Unix sockets has been removed, as it is not trivial to convert
   to Python 3 (and I don't use them)
@@ -59,6 +74,9 @@ One of these must be installed to use this library, although if you have a
 standard distribution of 2.6+, you should already have one.
 Keep in mind that ``cjson`` is supposed to be the quickest, I believe, so if
 you are going for full-on optimization you may want to pick it up.
+
+Since library uses ``contextlib`` module, you should have at least Python 2.5
+installed.
 
 
 Installation
@@ -141,6 +159,33 @@ notification.
 Additionally, the loads method does not return the params and method like
 ``xmlrpclib``, but instead a.) parses for errors, raising ProtocolErrors, and
 b.) returns the entire structure of the request / response for manual parsing.
+
+
+Additional headers
+******************
+
+If your remote service requires custom headers in request, you can pass them
+as as a ``headers`` keyword argument, when creating the ``ServerProxy``:
+
+.. code-block:: python
+
+   >>> import jsonrpclib
+   >>> server = jsonrpclib.ServerProxy("http://localhost:8080",
+                                       headers={'X-Test' : 'Test'})
+
+You can also put additional request headers only for certain method invocation:
+
+.. code-block:: python
+
+   >>> import jsonrpclib
+   >>> server = jsonrpclib.Server("http://localhost:8080")
+   >>> with server._additional_headers({'X-Test' : 'Test'}) as test_server:
+   ...     test_server.ping()
+   ...
+   >>> # X-Test header will be no longer sent in requests
+
+Of course ``_additional_headers`` contexts can be nested as well.
+
 
 SimpleJSONRPCServer
 *******************
@@ -250,7 +295,7 @@ over JSON:
 * Wider XML-RPC support across APIs (can we change this? :))
 * Libraries are more established, i.e. more stable (Let's change this too.)
 
-TESTS
+Tests
 *****
 
 I've dropped almost-verbatim tests from the JSON-RPC spec 2.0 page.
@@ -259,3 +304,4 @@ You can run it with:
 .. code-block:: console
 
    python tests.py
+   python3 tests.py
