@@ -23,7 +23,7 @@ except ImportError:
 
 setup(
     name="jsonrpclib-pelix",
-    version="0.1.4",
+    version="0.1.5",
     license="http://www.apache.org/licenses/LICENSE-2.0",
     author="Thomas Calmant",
     author_email="thomas.calmant@gmail.com",
