@@ -87,12 +87,12 @@ else:
 # Common
 
 DictType = dict
+
 ListType = list
 SetTypes = (set, frozenset)
 TupleType = tuple
 
-iter_types = (
-    dict,
+iterable_types = (
     list,
     set, frozenset,
     tuple

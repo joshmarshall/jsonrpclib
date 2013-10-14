@@ -19,7 +19,8 @@ import re
 # ------------------------------------------------------------------------------
 
 # Supported transmitted code
-supported_types = utils.iter_types + utils.primitive_types
+supported_types = (utils.DictType,) + utils.iterable_types \
+                  + utils.primitive_types
 
 # Regex of invalid module characters
 invalid_module_chars = r'[^a-zA-Z0-9\_\.]'
@@ -59,28 +60,16 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
         return obj
 
     # Iterative
-    if isinstance(obj, utils.iter_types):
+    elif isinstance(obj, utils.iterable_types):
+        # List, set or tuple
+        return [dump(item, serialize_method, ignore_attribute, ignore)
+                for item in obj]
 
-        if isinstance(obj, utils.DictType):
-            # It's a dictionary
-            new_obj = {}
-            for key, value in obj.items():
-                new_obj[key] = dump(value, serialize_method,
-                                     ignore_attribute, ignore)
-            return new_obj
-
-        else:
-            # ... list or tuple
-            new_obj = []
-            for item in obj:
-                new_obj.append(dump(item, serialize_method,
-                                     ignore_attribute, ignore))
-
-            if isinstance(obj, utils.TupleType):
-                # Keep the "tuple" type
-                new_obj = tuple(new_obj)
-
-            return new_obj
+    elif isinstance(obj, utils.DictType):
+        # Dictionary
+        return dict((key, dump(value, serialize_method,
+                               ignore_attribute, ignore))
+                    for key, value in obj.items())
 
     # It's not a standard type, so it needs __jsonclass__
     module_name = inspect.getmodule(obj).__name__
@@ -131,8 +120,8 @@ def load(obj):
     if isinstance(obj, utils.primitive_types):
         return obj
 
-    # List
-    elif isinstance(obj, (utils.ListType, utils.TupleType)):
+    # List, set or tuple
+    elif isinstance(obj, utils.iterable_types):
         return_obj = [load(entry) for entry in obj]
         if isinstance(obj, utils.TupleType):
             return_obj = tuple(return_obj)
@@ -197,7 +186,7 @@ def load(obj):
         new_obj = json_class(**params)
 
     else:
-        raise TranslationError("Constructor args must be a dict or list, "
+        raise TranslationError("Constructor args must be a dict or a list, "
                                "not {0}".format(type(params).__name__))
 
     # Remove the class information, as it must be ignored during the
