@@ -39,7 +39,7 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
     Transforms the given object into a JSON-RPC compliant form.
     Converts beans into dictionaries with a __jsonclass__ entry.
     Doesn't change primitive types.
-    
+
     :param obj: An object to convert
     :param serialize_method: Custom serialization method
     :param ignore_attribute: Name of the object attribute containing the names
@@ -123,7 +123,7 @@ def load(obj):
     """
     If 'obj' is a dictionary containing a __jsonclass__ entry, converts the
     dictionary item into a bean of this class.
-    
+
     :param obj: An object from a JSON-RPC dictionary
     :return: The loaded object
     """
@@ -193,11 +193,12 @@ def load(obj):
     if isinstance(params, utils.ListType):
         new_obj = json_class(*params)
 
-    if isinstance(params, utils.DictType):
+    elif isinstance(params, utils.DictType):
         new_obj = json_class(**params)
 
     else:
-        raise TranslationError('Constructor args must be a dict or list.')
+        raise TranslationError("Constructor args must be a dict or list, "
+                               "not {0}".format(type(params).__name__))
 
     for key, value in obj.items():
         if key == '__jsonclass__':
