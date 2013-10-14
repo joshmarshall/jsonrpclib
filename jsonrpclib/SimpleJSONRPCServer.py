@@ -27,22 +27,23 @@ import sys
 import traceback
 
 try:
-    import fcntl
+    # Python 3
+    import xmlrpc.server as xmlrpcserver
+    import socketserver
+
 except ImportError:
-    # For Windows
-    fcntl = None
-
-# ------------------------------------------------------------------------------
-
-if sys.version_info[0] < 3:
     # Python 2
     import SimpleXMLRPCServer as xmlrpcserver
     import SocketServer as socketserver
 
-else:
-    # Python 3
-    import xmlrpc.server as xmlrpcserver
-    import socketserver
+
+try:
+    # Windows
+    import fcntl
+
+except ImportError:
+    # Others
+    fcntl = None
 
 # ------------------------------------------------------------------------------
 

@@ -69,16 +69,7 @@ import contextlib
 import sys
 import uuid
 
-if sys.version_info[0] < 3:
-    # Python 2
-    from urllib import splittype
-    from urllib import splithost
-    from xmlrpclib import Transport as XMLTransport
-    from xmlrpclib import SafeTransport as XMLSafeTransport
-    from xmlrpclib import ServerProxy as XMLServerProxy
-    from xmlrpclib import _Method as XML_Method
-
-else:
+try:
     # Python 3
     from urllib.parse import splittype
     from urllib.parse import splithost
@@ -86,6 +77,15 @@ else:
     from xmlrpc.client import SafeTransport as XMLSafeTransport
     from xmlrpc.client import ServerProxy as XMLServerProxy
     from xmlrpc.client import _Method as XML_Method
+
+except ImportError:
+    # Python 2
+    from urllib import splittype
+    from urllib import splithost
+    from xmlrpclib import Transport as XMLTransport
+    from xmlrpclib import SafeTransport as XMLSafeTransport
+    from xmlrpclib import ServerProxy as XMLServerProxy
+    from xmlrpclib import _Method as XML_Method
 
 # ------------------------------------------------------------------------------
 # JSON library import
