@@ -17,11 +17,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 :license: Apache License 2.0
-:version: 0.1.5
+:version: 0.1.6
 """
 
 # Module version
-__version_info__ = (0, 1, 5)
+__version_info__ = (0, 1, 6)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -29,7 +29,7 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 # Local modules
-from jsonrpclib import Fault, config
+from jsonrpclib import Fault
 import jsonrpclib
 import jsonrpclib.utils as utils
 
@@ -47,7 +47,6 @@ except ImportError:
     # Python 2
     import SimpleXMLRPCServer as xmlrpcserver
     import SocketServer as socketserver
-
 
 try:
     # Windows
@@ -75,17 +74,19 @@ def get_version(request):
     return None
 
 
-def validate_request(request):
+def validate_request(request, json_config):
     """
     Validates the format of a request dictionary
 
     :param request: A request dictionary
+    :param json_config: A JSONRPClib Config instance
     :return: True if the dictionary is valid, else a Fault object
     """
     if not isinstance(request, utils.DictType):
         # Invalid request type
         return Fault(-32600, 'Request must be a dict, not {0}' \
-                     .format(type(request).__name__))
+                     .format(type(request).__name__),
+                     config=json_config)
 
     # Get the request ID
     rpcid = request.get('id', None)
@@ -94,7 +95,7 @@ def validate_request(request):
     version = get_version(request)
     if not version:
         return Fault(-32600, 'Request {0} invalid.'.format(request),
-                     rpcid=rpcid)
+                     rpcid=rpcid, config=json_config)
 
     # Default parameters: empty list
     request.setdefault('params', [])
@@ -108,7 +109,7 @@ def validate_request(request):
     not isinstance(params, param_types):
         # Invalid type of method name or parameters
         return Fault(-32600, 'Invalid request parameters or method.',
-                     rpcid=rpcid)
+                     rpcid=rpcid, config=json_config)
 
     # Valid request
     return True
@@ -124,7 +125,7 @@ class NoMulticallResult(Exception):
 
 class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
 
-    def __init__(self, encoding=None):
+    def __init__(self, encoding=None, config=jsonrpclib.config.DEFAULT):
         """
         Sets up the dispatcher with the given encoding.
         None values are allowed.
@@ -133,9 +134,11 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
             # Default encoding
             encoding = "UTF-8"
 
+
         xmlrpcserver.SimpleXMLRPCDispatcher.__init__(self,
                                                      allow_none=True,
                                                      encoding=encoding)
+        self.json_config = config
 
 
     def _unmarshaled_dispatch(self, request, dispatch_method=None):
@@ -151,7 +154,8 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
         """
         if not request:
             # Invalid request dictionary
-            fault = Fault(-32600, 'Request invalid -- no request data.')
+            fault = Fault(-32600, 'Request invalid -- no request data.',
+                          config=self.json_config)
             return fault.dump()
 
         if type(request) is utils.ListType:
@@ -159,7 +163,7 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
             responses = []
             for req_entry in request:
                 # Validate the request
-                result = validate_request(req_entry)
+                result = validate_request(req_entry, self.json_config)
                 if type(result) is Fault:
                     responses.append(result.dump())
                     continue
@@ -183,7 +187,7 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
 
         else:
             # Single call
-            result = validate_request(request)
+            result = validate_request(request, self.json_config)
             if type(result) is Fault:
                 return result.dump()
 
@@ -207,12 +211,13 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
         """
         # Parse the request
         try:
-            request = jsonrpclib.loads(data)
+            request = jsonrpclib.loads(data, self.json_config)
 
         except Exception as ex:
             # Parsing/loading error
             fault = Fault(-32700, 'Request {0} invalid. ({1}:{2})' \
-                          .format(data, type(ex).__name__, ex))
+                          .format(data, type(ex).__name__, ex),
+                          config=self.json_config)
             return fault.response()
 
         # Get the response dictionary
@@ -255,7 +260,8 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
         except:
             # Return a fault
             exc_type, exc_value, _ = sys.exc_info()
-            fault = Fault(-32603, '{0}:{1}'.format(exc_type, exc_value))
+            fault = Fault(-32603, '{0}:{1}'.format(exc_type, exc_value),
+                          config=self.json_config)
             return fault.dump()
 
         if 'id' not in request or request['id'] in (None, ''):
@@ -266,12 +272,13 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
         # Prepare a JSON-RPC dictionary
         try:
             return jsonrpclib.dump(response, rpcid=request['id'],
-                                   is_response=True)
+                                   is_response=True, config=self.json_config)
 
         except:
             # JSON conversion exception
             exc_type, exc_value, _ = sys.exc_info()
-            fault = Fault(-32603, '{0}:{1}'.format(exc_type, exc_value))
+            fault = Fault(-32603, '{0}:{1}'.format(exc_type, exc_value),
+                          config=self.json_config)
             return fault.dump()
 
 
@@ -315,23 +322,29 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
 
             except TypeError as ex:
                 # Maybe the parameters are wrong
-                return Fault(-32602, 'Invalid parameters: {0}'.format(ex))
+                return Fault(-32602, 'Invalid parameters: {0}'.format(ex),
+                             config=self.json_config)
 
             except:
                 # Method exception
                 err_lines = traceback.format_exc().splitlines()
                 trace_string = '{0} | {1}'.format(err_lines[-3], err_lines[-1])
-                return Fault(-32603, 'Server error: {0}'.format(trace_string))
+                return Fault(-32603, 'Server error: {0}'.format(trace_string),
+                             config=self.json_config)
 
         else:
             # Unknown method
-            return Fault(-32601, 'Method {0} not supported.'.format(method))
+            return Fault(-32601, 'Method {0} not supported.'.format(method),
+                         config=self.json_config)
 
 # ------------------------------------------------------------------------------
 
 class SimpleJSONRPCRequestHandler(xmlrpcserver.SimpleXMLRPCRequestHandler):
     """
-    HTTP server request handler
+    HTTP request handler.
+
+    The server that receives the requests must have a json_config member,
+    containing a JSONRPClib Config instance
     """
     def do_POST(self):
         """
@@ -340,6 +353,9 @@ class SimpleJSONRPCRequestHandler(xmlrpcserver.SimpleXMLRPCRequestHandler):
         if not self.is_rpc_path_valid():
             self.report_404()
             return
+
+        # Retrieve the configuration
+        config = getattr(self.server, 'json_config', jsonrpclib.config.DEFAULT)
 
         try:
             # Read the request body
@@ -364,7 +380,7 @@ class SimpleJSONRPCRequestHandler(xmlrpcserver.SimpleXMLRPCRequestHandler):
             err_lines = traceback.format_exc().splitlines()
             trace_string = '{0} | {1}'.format(err_lines[-3], err_lines[-1])
             fault = jsonrpclib.Fault(-32603, 'Server error: {0}'\
-                                     .format(trace_string))
+                                     .format(trace_string), config=config)
             response = fault.response()
 
         if response is None:
@@ -393,7 +409,8 @@ class SimpleJSONRPCServer(socketserver.TCPServer, SimpleJSONRPCDispatcher):
 
     def __init__(self, addr, requestHandler=SimpleJSONRPCRequestHandler,
                  logRequests=True, encoding=None, bind_and_activate=True,
-                 address_family=socket.AF_INET):
+                 address_family=socket.AF_INET,
+                 config=jsonrpclib.config.DEFAULT):
         """
         Sets up the server and the dispatcher
 
@@ -403,13 +420,24 @@ class SimpleJSONRPCServer(socketserver.TCPServer, SimpleJSONRPCDispatcher):
         :param encoding: The dispatcher request encoding
         :param bind_and_activate: If True, starts the server immediately
         :param address_family: The server listening address family
+        :param config: A JSONRPClib Config instance
         """
         # Set up the dispatcher fields
-        SimpleJSONRPCDispatcher.__init__(self, encoding)
+        SimpleJSONRPCDispatcher.__init__(self, encoding, config)
 
         # Prepare the server configuration
         self.logRequests = logRequests
         self.address_family = address_family
+        self.json_config = config
+
+        # Work on the request handler
+        class RequestHandlerWrapper(requestHandler):
+            def __init__(self, *args, **kwargs):
+                """
+                Constructs the wrapper after having stored the configuration
+                """
+                self.config = config
+                super(RequestHandlerWrapper, self).__init__(*args, **kwargs)
 
         # Set up the server
         socketserver.TCPServer.__init__(self, addr, requestHandler,
@@ -427,20 +455,23 @@ class CGIJSONRPCRequestHandler(SimpleJSONRPCDispatcher):
     """
     JSON-RPC CGI handler (and dispatcher)
     """
-    def __init__(self, encoding=None):
+    def __init__(self, encoding=None, config=jsonrpclib.config.DEFAULT):
         """
         Sets up the dispatcher
 
         :param encoding: Dispatcher encoding
+        :param config: A JSONRPClib Config instance
         """
-        SimpleJSONRPCDispatcher.__init__(self, encoding)
+        SimpleJSONRPCDispatcher.__init__(self, encoding, config)
+
 
     def handle_jsonrpc(self, request_text):
         """
         Handle a JSON-RPC request
         """
         response = self._marshaled_dispatch(request_text)
-        sys.stdout.write('Content-Type: {0}\r\n'.format(config.content_type))
+        sys.stdout.write('Content-Type: {0}\r\n' \
+                         .format(self.json_config.content_type))
         sys.stdout.write('Content-Length: {0:d}\r\n'.format(len(response)))
         sys.stdout.write('\r\n')
         sys.stdout.write(response)

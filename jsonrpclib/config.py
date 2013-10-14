@@ -16,11 +16,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 :license: Apache License 2.0
-:version: 0.1.5
+:version: 0.1.6
 """
 
 # Module version
-__version_info__ = (0, 1, 5)
+__version_info__ = (0, 1, 6)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -53,45 +53,56 @@ class Config(object):
     You can change serialize_method and ignore_attribute, or use
     the local_classes.add(class) to include "local" classes.
     """
-    # Change to False to keep __jsonclass__ entries raw.
-    use_jsonclass = True
+    def __init__(self, version=2.0, content_type="application/json-rpc",
+                 user_agent=None, use_jsonclass=True,
+                 serialize_method='_serialize',
+                 ignore_attribute='_ignore'):
+        """
+        Sets up a configuration of JSONRPClib
 
-    # The serialize_method should be a string that references the
-    # method on a custom class object which is responsible for
-    # returning a tuple of the constructor arguments and a dict of
-    # attributes.
-    serialize_method = '_serialize'
+        :param version: JSON-RPC specification version
+        :param content_type: HTTP content type header value
+        :param user_agent: The HTTP request user agent
+        :param use_jsonclass: Allow bean marshalling
+        :param serialize_method: A string that references the method on a
+                                 custom class object which is responsible for
+                                 returning a tuple of the arguments and a dict
+                                 of attributes.
+        :param ignore_attribute: A string that references the attribute on a
+                                 custom class object which holds strings and/or
+                                 references of the attributes the class
+                                 translator should ignore.
+        """
+        # JSON-RPC specification
+        self.version = version
 
-    # The ignore attribute should be a string that references the
-    # attribute on a custom class object which holds strings and / or
-    # references of the attributes the class translator should ignore.
-    ignore_attribute = '_ignore'
+        # Change to False to keep __jsonclass__ entries raw.
+        self.use_jsonclass = use_jsonclass
 
-    # The list of classes to use for jsonclass translation.
-    classes = LocalClasses()
+        # it SHOULD be 'application/json-rpc'
+        # but MAY be 'application/json' or 'application/jsonrequest'
+        self.content_type = content_type
 
-    # Version of the JSON-RPC specification to support
-    version = 2.0
-
-    # User agent to use for calls.
-    user_agent = 'jsonrpclib-pelix/{0} (Python {1})' \
+        # Default user agent
+        if user_agent is None:
+            user_agent = 'jsonrpclib/{0} (Python {1})' \
                  .format(__version__,
                          '.'.join(str(ver) for ver in sys.version_info[0:3]))
+        self.user_agent = user_agent
 
-    # Content-type to use. According to the JSON-RPC specification,
-    # it SHOULD be 'application/json-rpc'
-    # but MAY be 'application/json' or 'application/jsonrequest'
-    content_type = "application/json-rpc"
+        # The list of classes to use for jsonclass translation.
+        self.classes = LocalClasses()
 
-    # "Singleton" of Config
-    _instance = None
+        # The serialize_method should be a string that references the
+        # method on a custom class object which is responsible for
+        # returning a tuple of the constructor arguments and a dict of
+        # attributes.
+        self.serialize_method = serialize_method
 
-    @classmethod
-    def instance(cls):
-        """
-        Returns/Creates the instance of Config
-        """
-        if not cls._instance:
-            cls._instance = cls()
+        # The ignore attribute should be a string that references the
+        # attribute on a custom class object which holds strings and / or
+        # references of the attributes the class translator should ignore.
+        self.ignore_attribute = ignore_attribute
 
-        return cls._instance
+# Default configuration
+DEFAULT = Config()

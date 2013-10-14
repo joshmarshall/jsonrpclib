@@ -29,7 +29,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Local package
-from jsonrpclib import config
+import jsonrpclib.config
 import jsonrpclib.utils as utils
 
 # Standard library
@@ -55,7 +55,8 @@ class TranslationError(Exception):
 
 # ------------------------------------------------------------------------------
 
-def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
+def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[],
+         config=jsonrpclib.config.DEFAULT):
     """
     Transforms the given object into a JSON-RPC compliant form.
     Converts beans into dictionaries with a __jsonclass__ entry.
@@ -66,6 +67,7 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
     :param ignore_attribute: Name of the object attribute containing the names
                              of members to ignore
     :param ignore: A list of members to ignore
+    :param config: A JSONRPClib Config instance
     :return: A JSON-RPC compliant object
     """
     if not serialize_method:
@@ -128,12 +130,13 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
         return return_obj
 
 
-def load(obj):
+def load(obj, classes=None):
     """
     If 'obj' is a dictionary containing a __jsonclass__ entry, converts the
     dictionary item into a bean of this class.
 
     :param obj: An object from a JSON-RPC dictionary
+    :param classes: A custom {name: class} dictionary
     :return: The loaded object
     """
     # Primitive
@@ -171,12 +174,13 @@ def load(obj):
     # Load the class
     json_module_parts = json_module_clean.split('.')
     json_class = None
-    if len(json_module_parts) == 1:
+    if classes and len(json_module_parts) == 1:
         # Local class name -- probably means it won't work
-        if json_module_parts[0] not in config.classes.keys():
+        try:
+            json_class = classes[json_module_parts[0]]
+        except KeyError:
             raise TranslationError('Unknown class or module {0}.' \
                                    .format(json_module_parts[0]))
-        json_class = config.classes[json_module_parts[0]]
 
     else:
         # Module + class

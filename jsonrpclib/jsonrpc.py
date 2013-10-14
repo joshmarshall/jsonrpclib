@@ -48,11 +48,11 @@ appropriately.
 See https://github.com/tcalmant/jsonrpclib for more info.
 
 :license: Apache License 2.0
-:version: 0.1.5
+:version: 0.1.6
 """
 
 # Module version
-__version_info__ = (0, 1, 5)
+__version_info__ = (0, 1, 6)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -61,7 +61,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Library includes
-from jsonrpclib import config
+import jsonrpclib.config
 import jsonrpclib.utils as utils
 
 # Standard library
@@ -162,7 +162,6 @@ class AppError(ProtocolError):
 
 class TransportMixIn(object):
     """ Just extends the XMLRPC transport where necessary. """
-    user_agent = config.user_agent
     # for Python 2.7 support
     _connection = None
 
@@ -172,6 +171,18 @@ class TransportMixIn(object):
     # List of non-overridable headers
     # Use the configuration to change the content-type
     readonly_headers = ('content-length', 'content-type')
+
+    def __init__(self, config=jsonrpclib.config.DEFAULT):
+        """
+        Sets up the transport
+
+        :param config: A JSONRPClib Config instance
+        """
+        # Store the configuration
+        self._config = config
+
+        # Set up the user agent
+        self.user_agent = config.user_agent
 
     def push_headers(self, headers):
         """
@@ -224,7 +235,7 @@ class TransportMixIn(object):
         request_body = utils.to_bytes(request_body)
 
         # "static" headers
-        connection.putheader("Content-Type", config.content_type)
+        connection.putheader("Content-Type", self._config.content_type)
         connection.putheader("Content-Length", str(len(request_body)))
 
         # Emit additional headers here in order not to override content-length
@@ -286,7 +297,8 @@ class ServerProxy(XMLServerProxy):
     """
 
     def __init__(self, uri, transport=None, encoding=None,
-                 verbose=0, version=None, headers=None, history=None):
+                 verbose=0, version=None, headers=None, history=None,
+                 config=jsonrpclib.config.DEFAULT):
         """
         Sets up the server proxy
 
@@ -297,7 +309,11 @@ class ServerProxy(XMLServerProxy):
         :param version: JSON-RPC specification version
         :param headers: Custom additional headers for each request
         :param history: History object (for tests)
+        :param config: A JSONRPClib Config instance
         """
+        # Store the configuration
+        self._config = config
+
         if not version:
             version = config.version
         self.__version = version
@@ -313,9 +329,9 @@ class ServerProxy(XMLServerProxy):
 
         if transport is None:
             if schema == 'https':
-                transport = SafeTransport()
+                transport = SafeTransport(config=config)
             else:
-                transport = Transport()
+                transport = Transport(config=config)
         self.__transport = transport
 
         self.__encoding = encoding
@@ -327,14 +343,16 @@ class ServerProxy(XMLServerProxy):
 
     def _request(self, methodname, params, rpcid=None):
         request = dumps(params, methodname, encoding=self.__encoding,
-                        rpcid=rpcid, version=self.__version)
+                        rpcid=rpcid, version=self.__version,
+                        config=self._config)
         response = self._run_request(request)
         check_for_errors(response)
         return response['result']
 
     def _request_notify(self, methodname, params, rpcid=None):
         request = dumps(params, methodname, encoding=self.__encoding,
-                        rpcid=rpcid, version=self.__version, notify=True)
+                        rpcid=rpcid, version=self.__version, notify=True,
+                        config=self._config)
         response = self._run_request(request, notify=True)
         check_for_errors(response)
         return
@@ -361,7 +379,7 @@ class ServerProxy(XMLServerProxy):
 
         if not response:
             return None
-        return_obj = loads(response)
+        return_obj = loads(response, self._config)
         return return_obj
 
     def __getattr__(self, name):
@@ -423,10 +441,11 @@ class _Notify(object):
 
 class MultiCallMethod(object):
 
-    def __init__(self, method, notify=False):
+    def __init__(self, method, notify=False, config=jsonrpclib.config.DEFAULT):
         self.method = method
         self.params = []
         self.notify = notify
+        self._config = config
 
     def __call__(self, *args, **kwargs):
         if len(kwargs) > 0 and len(args) > 0:
@@ -439,7 +458,8 @@ class MultiCallMethod(object):
 
     def request(self, encoding=None, rpcid=None):
         return dumps(self.params, self.method, version=2.0,
-                     encoding=encoding, rpcid=rpcid, notify=self.notify)
+                     encoding=encoding, rpcid=rpcid, notify=self.notify,
+                     config=self._config)
 
     def __repr__(self):
         return '%s' % self.request()
@@ -451,11 +471,12 @@ class MultiCallMethod(object):
 
 class MultiCallNotify(object):
 
-    def __init__(self, multicall):
+    def __init__(self, multicall, config=jsonrpclib.config.DEFAULT):
         self.multicall = multicall
+        self._config = config
 
     def __getattr__(self, name):
-        new_job = MultiCallMethod(name, notify=True)
+        new_job = MultiCallMethod(name, notify=True, config=self._config)
         self.multicall._job_list.append(new_job)
         return new_job
 
@@ -479,9 +500,10 @@ class MultiCallIterator(object):
 
 class MultiCall(object):
 
-    def __init__(self, server):
+    def __init__(self, server, config=jsonrpclib.config.DEFAULT):
         self._server = server
         self._job_list = []
+        self._config = config
 
     def _request(self):
         if len(self._job_list) < 1:
@@ -497,10 +519,10 @@ class MultiCall(object):
 
     @property
     def _notify(self):
-        return MultiCallNotify(self)
+        return MultiCallNotify(self, self._config)
 
     def __getattr__(self, name):
-        new_job = MultiCallMethod(name)
+        new_job = MultiCallMethod(name, config=self._config)
         self._job_list.append(new_job)
         return new_job
 
@@ -516,17 +538,20 @@ class Fault(object):
     """
     JSON-RPC error class
     """
-    def __init__(self, code=-32000, message='Server error', rpcid=None):
+    def __init__(self, code=-32000, message='Server error', rpcid=None,
+                 config=jsonrpclib.config.DEFAULT):
         """
         Sets up the error description
 
         :param code: Fault code
         :param message: Associated message
         :param rpcid: Request ID
+        :param config: A JSONRPClib Config instance
         """
         self.faultCode = code
         self.faultString = message
         self.rpcid = rpcid
+        self.config = config
 
     def error(self):
         """
@@ -545,13 +570,13 @@ class Fault(object):
         :return: A JSON-RPC response string
         """
         if not version:
-            version = config.version
+            version = self.config.version
 
         if rpcid:
             self.rpcid = rpcid
 
         return dumps(self, methodresponse=True, rpcid=self.rpcid,
-                     version=version)
+                     version=version, config=self.config)
 
     def dump(self, rpcid=None, version=None):
         """
@@ -562,13 +587,13 @@ class Fault(object):
         :return: A JSON-RPC response dictionary
         """
         if not version:
-            version = config.version
+            version = self.config.version
 
         if rpcid:
             self.rpcid = rpcid
 
         return dump(self, is_response=True, rpcid=self.rpcid,
-                    version=version)
+                    version=version, config=self.config)
 
     def __repr__(self):
         """
@@ -581,12 +606,14 @@ class Payload(object):
     """
     JSON-RPC content handler
     """
-    def __init__(self, rpcid=None, version=None):
+    def __init__(self, rpcid=None, version=None,
+                 config=jsonrpclib.config.DEFAULT):
         """
         Sets up the JSON-RPC handler
 
         :param rpcid: Request ID
         :param version: JSON-RPC version
+        :param config: A JSONRPClib Config instance
         """
         if not version:
             version = config.version
@@ -676,7 +703,7 @@ class Payload(object):
 # ------------------------------------------------------------------------------
 
 def dump(params=[], methodname=None, rpcid=None, version=None,
-         is_response=None, is_notify=None):
+         is_response=None, is_notify=None, config=jsonrpclib.config.DEFAULT):
     """
     Prepares a JSON-RPC dictionary (request, notification, response or error)
 
@@ -686,6 +713,7 @@ def dump(params=[], methodname=None, rpcid=None, version=None,
     :param version: JSON-RPC version
     :param is_response: If True, this is a response dictionary
     :param is_notify: If True, this is a notification request
+    :param config: A JSONRPClib Config instance
     :return: A JSON-RPC dictionary
     """
     # Default version
@@ -735,7 +763,8 @@ def dump(params=[], methodname=None, rpcid=None, version=None,
 
 
 def dumps(params=[], methodname=None, methodresponse=None,
-          encoding=None, rpcid=None, version=None, notify=None):
+          encoding=None, rpcid=None, version=None, notify=None,
+          config=jsonrpclib.config.DEFAULT):
     """
     Prepares a JSON-RPC request/response string
 
@@ -746,10 +775,12 @@ def dumps(params=[], methodname=None, methodresponse=None,
     :param rpcid: Request ID
     :param version: JSON-RPC version
     :param notify: If True, this is a notification request
+    :param config: A JSONRPClib Config instance
     :return: A JSON-RPC dictionary
     """
     # Prepare the dictionary
-    request = dump(params, methodname, rpcid, version, methodresponse, notify)
+    request = dump(params, methodname, rpcid, version, methodresponse, notify,
+                   config)
 
     # Set the default encoding
     if not encoding:
@@ -759,11 +790,12 @@ def dumps(params=[], methodname=None, methodresponse=None,
     return jdumps(request, encoding=encoding)
 
 
-def load(data):
+def load(data, config=jsonrpclib.config.DEFAULT):
     """
     Loads a JSON-RPC request/response dictionary. Calls jsonclass to load beans
 
     :param data: A JSON-RPC dictionary
+    :param config: A JSONRPClib Config instance (or None for default values)
     :return: A parsed dictionary or None
     """
     if data is None:
@@ -775,16 +807,17 @@ def load(data):
     # { 'jsonrpc':'2.0', 'error': fault.error(), id: None }
     if config.use_jsonclass:
         # Convert beans
-        data = jsonclass.load(data)
+        data = jsonclass.load(data, config.classes)
 
     return data
 
 
-def loads(data):
+def loads(data, config=jsonrpclib.config.DEFAULT):
     """
     Loads a JSON-RPC request/response string. Calls jsonclass to load beans
 
     :param data: A JSON-RPC string
+    :param config: A JSONRPClib Config instance (or None for default values)
     :return: A parsed dictionary or None
     """
     if data == '':
@@ -795,7 +828,7 @@ def loads(data):
     result = jloads(data)
 
     # Load the beans
-    return load(result)
+    return load(result, config)
 
 # ------------------------------------------------------------------------------
 
