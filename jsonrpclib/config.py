@@ -2,9 +2,17 @@
 # -- Content-Encoding: UTF-8 --
 """
 The configuration module.
+
+:license: Apache License 2.0
+:version: 0.1.5
 """
 
-__version__ = "0.1.5"
+# Module version
+__version_info__ = (0, 1, 5)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
@@ -19,7 +27,7 @@ class LocalClasses(dict):
     def add(self, cls):
         """
         Stores a local class
-        
+
         :param cls: A class
         """
         self[cls.__name__] = cls
@@ -28,7 +36,7 @@ class LocalClasses(dict):
 
 class Config(object):
     """
-    This is pretty much used exclusively for the 'jsonclass' 
+    This is pretty much used exclusively for the 'jsonclass'
     functionality... set use_jsonclass to False to turn it off.
     You can change serialize_method and ignore_attribute, or use
     the local_classes.add(class) to include "local" classes.

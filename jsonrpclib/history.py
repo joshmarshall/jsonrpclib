@@ -2,9 +2,17 @@
 # -- Content-Encoding: UTF-8 --
 """
 The history module.
+
+:license: Apache License 2.0
+:version: 0.1.5
 """
 
-__version__ = "0.1.5"
+# Module version
+__version_info__ = (0, 1, 5)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
@@ -12,7 +20,7 @@ class History(object):
     """
     This holds all the response and request objects for a
     session. A server using this should call "clear" after
-    each request cycle in order to keep it from clogging 
+    each request cycle in order to keep it from clogging
     memory.
     """
     def __init__(self):
@@ -25,7 +33,7 @@ class History(object):
     def add_response(self, response_obj):
         """
         Adds a response to the history
-        
+
         :param response_obj: Response content
         """
         self.responses.append(response_obj)
@@ -33,7 +41,7 @@ class History(object):
     def add_request(self, request_obj):
         """
         Adds a request to the history
-        
+
         :param request_obj: A request object
         """
         self.requests.append(request_obj)
@@ -42,7 +50,7 @@ class History(object):
     def request(self):
         """
         Returns the latest stored request or None
-        
+
         :return: The latest stored request
         """
         try:
@@ -55,7 +63,7 @@ class History(object):
     def response(self):
         """
         Returns the latest stored response or None
-        
+
         :return: The latest stored response
         """
         try:

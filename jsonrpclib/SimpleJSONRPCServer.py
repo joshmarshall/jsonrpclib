@@ -3,9 +3,17 @@
 """
 Defines a request dispatcher, a HTTP request handler, a HTTP server and a
 CGI request handler.
+
+:license: Apache License 2.0
+:version: 0.1.5
 """
 
-__version__ = "0.1.5"
+# Module version
+__version_info__ = (0, 1, 5)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 # Local modules
@@ -41,7 +49,7 @@ else:
 def get_version(request):
     """
     Computes the JSON-RPC version
-    
+
     :param request: A request dictionary
     :return: The JSON-RPC version or None
     """
@@ -57,7 +65,7 @@ def get_version(request):
 def validate_request(request):
     """
     Validates the format of a request dictionary
-    
+
     :param request: A request dictionary
     :return: True if the dictionary is valid, else a Fault object
     """
@@ -121,7 +129,7 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
         """
         Loads the request dictionary (unmarshaled), calls the method(s)
         accordingly and returns a JSON-RPC dictionary (not marshaled)
-        
+
         :param request: JSON-RPC request dictionary (or list of)
         :param dispatch_method: Custom dispatch method (for method resolution)
         :return: A JSON-RPC dictionary (or an array of) or None if the request
@@ -179,7 +187,7 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
         """
         Parses the request data (marshaled), calls method(s) and returns a
         JSON string (marshaled)
-        
+
         :param data: A JSON request string
         :param dispatch_method: Custom dispatch method (for method resolution)
         :return: A JSON-RPC response string (marshaled)
@@ -214,7 +222,7 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
     def _marshaled_single_dispatch(self, request, dispatch_method=None):
         """
         Dispatches a single method call
-        
+
         :param request: A validated request dictionary
         :param dispatch_method: Custom dispatch method (for method resolution)
         :return: A JSON-RPC response dictionary, or None if it was a
@@ -257,7 +265,7 @@ class SimpleJSONRPCDispatcher(xmlrpcserver.SimpleXMLRPCDispatcher):
     def _dispatch(self, method, params):
         """
         Default method resolver and caller
-        
+
         :param method: Name of the method to call
         :param params: List of arguments to give to the method
         :return: The result of the method
@@ -375,7 +383,7 @@ class SimpleJSONRPCServer(socketserver.TCPServer, SimpleJSONRPCDispatcher):
                  address_family=socket.AF_INET):
         """
         Sets up the server and the dispatcher
-        
+
         :param addr: The server listening address
         :param requestHandler: Custom request handler
         :param logRequests: Flag to(de)activate requests logging
@@ -409,7 +417,7 @@ class CGIJSONRPCRequestHandler(SimpleJSONRPCDispatcher):
     def __init__(self, encoding=None):
         """
         Sets up the dispatcher
-        
+
         :param encoding: Dispatcher encoding
         """
         SimpleJSONRPCDispatcher.__init__(self, encoding)

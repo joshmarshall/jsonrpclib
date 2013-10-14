@@ -4,10 +4,16 @@
 Utility methods, for compatibility between Python version
 
 :author: Thomas Calmant
+:license: Apache License 2.0
 :version: 1.0.1
 """
 
-__version__ = "1.0.1"
+# Module version
+__version_info__ = (1, 0, 1)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

@@ -45,10 +45,18 @@ appropriately.
 >>> batch()
 [53, 5]
 
-See http://code.google.com/p/jsonrpclib/ for more info.
+See https://github.com/tcalmant/jsonrpclib for more info.
+
+:license: Apache License 2.0
+:version: 0.1.5
 """
 
-__version__ = "0.1.5"
+# Module version
+__version_info__ = (0, 1, 5)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
@@ -128,7 +136,7 @@ except ImportError:
 class ProtocolError(Exception):
     """
     JSON-RPC error
-    
+
     ProtocolError[0] can be:
     * an error message (string)
     * a (code, message) tuple
@@ -138,7 +146,7 @@ class ProtocolError(Exception):
 class AppError(ProtocolError):
     """
     Application error: the error code is not in the pre-defined ones
-    
+
     AppError[0][0]: Error code
     AppError[0][1]: Error message or trace
     AppError[0][2]: Associated data
@@ -146,7 +154,7 @@ class AppError(ProtocolError):
     def data(self):
         """
         Retrieves the value found in the 'data' entry of the error, or None
-        
+
         :return: The data associated to the error, or None
         """
         return self[0][2]
@@ -168,16 +176,16 @@ class TransportMixIn(object):
     def push_headers(self, headers):
         """
         Adds a dictionary of headers to the additional headers list
-        
+
         :param headers: A dictionary
         """
         self.additional_headers.append(headers)
 
     def pop_headers(self, headers):
         """
-        Removes the given dictionary from the additional headers list. 
+        Removes the given dictionary from the additional headers list.
         Also validates that given headers are on top of the stack
-        
+
         :param headers: Headers to remove
         :raise AssertionError: The given dictionary is not on the latest stored
                                in the additional headers list
@@ -189,7 +197,7 @@ class TransportMixIn(object):
     def emit_additional_headers(self, connection):
         """
         Puts headers as is in the request, filtered read only headers
-        
+
         :param connection: The request connection
         """
         additional_headers = {}
@@ -281,7 +289,7 @@ class ServerProxy(XMLServerProxy):
                  verbose=0, version=None, headers=None, history=None):
         """
         Sets up the server proxy
-        
+
         :param uri: Request URI
         :param transport: Custom transport handler
         :param encoding: Specified encoding
@@ -511,7 +519,7 @@ class Fault(object):
     def __init__(self, code=-32000, message='Server error', rpcid=None):
         """
         Sets up the error description
-        
+
         :param code: Fault code
         :param message: Associated message
         :param rpcid: Request ID
@@ -523,7 +531,7 @@ class Fault(object):
     def error(self):
         """
         Returns the error as a dictionary
-        
+
         :returns: A {'code', 'message'} dictionary
         """
         return {'code':self.faultCode, 'message':self.faultString}
@@ -531,7 +539,7 @@ class Fault(object):
     def response(self, rpcid=None, version=None):
         """
         Returns the error as a JSON-RPC response string
-        
+
         :param rpcid: Forced request ID
         :param version: JSON-RPC version
         :return: A JSON-RPC response string
@@ -548,7 +556,7 @@ class Fault(object):
     def dump(self, rpcid=None, version=None):
         """
         Returns the error as a JSON-RPC response dictionary
-        
+
         :param rpcid: Forced request ID
         :param version: JSON-RPC version
         :return: A JSON-RPC response dictionary
@@ -576,7 +584,7 @@ class Payload(object):
     def __init__(self, rpcid=None, version=None):
         """
         Sets up the JSON-RPC handler
-        
+
         :param rpcid: Request ID
         :param version: JSON-RPC version
         """
@@ -590,7 +598,7 @@ class Payload(object):
     def request(self, method, params=[]):
         """
         Prepares a method call request
-        
+
         :param method: Method name
         :param params: Method parameters
         :return: A JSON-RPC request dictionary
@@ -615,7 +623,7 @@ class Payload(object):
     def notify(self, method, params=[]):
         """
         Prepares a notification request
-        
+
         :param method: Notification name
         :param params: Notification parameters
         :return: A JSON-RPC notification dictionary
@@ -635,7 +643,7 @@ class Payload(object):
     def response(self, result=None):
         """
         Prepares a response dictionary
-        
+
         :param result: The result of method call
         :return: A JSON-RPC response dictionary
         """
@@ -652,7 +660,7 @@ class Payload(object):
     def error(self, code=-32000, message='Server error.'):
         """
         Prepares an error dictionary
-        
+
         :param code: Error code
         :param message: Error message
         :return: A JSON-RPC error dictionary
@@ -671,7 +679,7 @@ def dump(params=[], methodname=None, rpcid=None, version=None,
          is_response=None, is_notify=None):
     """
     Prepares a JSON-RPC dictionary (request, notification, response or error)
-    
+
     :param params: Method parameters (if a method name is given) or a Fault
     :param methodname: Method name
     :param rpcid: Request ID
@@ -730,7 +738,7 @@ def dumps(params=[], methodname=None, methodresponse=None,
           encoding=None, rpcid=None, version=None, notify=None):
     """
     Prepares a JSON-RPC request/response string
-    
+
     :param params: Method parameters (if a method name is given) or a Fault
     :param methodname: Method name
     :param methodresponse: If True, this is a response dictionary
@@ -754,7 +762,7 @@ def dumps(params=[], methodname=None, methodresponse=None,
 def load(data):
     """
     Loads a JSON-RPC request/response dictionary. Calls jsonclass to load beans
-    
+
     :param data: A JSON-RPC dictionary
     :return: A parsed dictionary or None
     """
@@ -775,7 +783,7 @@ def load(data):
 def loads(data):
     """
     Loads a JSON-RPC request/response string. Calls jsonclass to load beans
-    
+
     :param data: A JSON-RPC string
     :return: A parsed dictionary or None
     """
@@ -794,7 +802,7 @@ def loads(data):
 def check_for_errors(result):
     """
     Checks if a result dictionary signals an error
-    
+
     :param result: A result dictionary
     :raise TypeError: Invalid parameter
     :raise NotImplementedError: Unknown JSON-RPC version
@@ -876,7 +884,7 @@ def isbatch(result):
 def isnotification(request):
     """
     Tests if the given request is a notification
-    
+
     :param request: A request dictionary
     :return: True if the request is a notification
     """

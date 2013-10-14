@@ -1,5 +1,10 @@
 #!/usr/bin/python
 # -- Content-Encoding: UTF-8 --
+"""
+Aliases to ease access to jsonrpclib classes
+
+:license: Apache License 2.0
+"""
 
 # Create a configuration instance
 from jsonrpclib.config import Config
