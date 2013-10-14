@@ -1,51 +1,156 @@
+#!/usr/bin/python
+# -- Content-Encoding: UTF-8 --
 """
 The tests in this file compare the request and response objects
 to the JSON-RPC 2.0 specification document, as well as testing
-several internal components of the jsonrpclib library. Run this 
+several internal components of the jsonrpclib library. Run this
 module without any parameters to run the tests.
 
-Currently, this is not easily tested with a framework like 
+Currently, this is not easily tested with a framework like
 nosetests because we spin up a daemon thread running the
 the Server, and nosetests (at least in my tests) does not
 ever "kill" the thread.
 
 If you are testing jsonrpclib and the module doesn't return to
-the command prompt after running the tests, you can hit 
+the command prompt after running the tests, you can hit
 "Ctrl-C" (or "Ctrl-Break" on Windows) and that should kill it.
 
 TODO:
 * Finish implementing JSON-RPC 2.0 Spec tests
 * Implement JSON-RPC 1.0 tests
 * Implement JSONClass, History, Config tests
+
+:license: Apache License 2.0
+:version: 1.0.0
 """
 
+# Module version
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+
+# ------------------------------------------------------------------------------
+
+# jsonrpclib
 from jsonrpclib import Server, MultiCall, ProtocolError
 from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
-from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCRequestHandler
 from jsonrpclib.utils import from_bytes
-
-import socket
-import unittest
-import time
 import jsonrpclib.history
 
+# Standard library
 import contextlib
 import re
 import sys
+import threading
+import time
+import unittest
 
-if sys.version_info[0] < 3:
+try:
+    # Python 2
     from StringIO import StringIO
 
-else:
+except ImportError:
+    # Python 3
     from io import StringIO
 
 try:
     import json
+
 except ImportError:
     import simplejson as json
-from threading import Thread
+
+# ------------------------------------------------------------------------------
 
 PORTS = list(range(8000, 8999))
+
+# ------------------------------------------------------------------------------
+# Test methods
+
+def subtract(minuend, subtrahend):
+    """
+    Using the keywords from the JSON-RPC v2 doc
+    """
+    return minuend - subtrahend
+
+def add(x, y):
+    return x + y
+
+def update(*args):
+    return args
+
+def summation(*args):
+    return sum(args)
+
+def notify_hello(*args):
+    return args
+
+def get_data():
+    return ['hello', 5]
+
+def ping():
+    return True
+
+# ------------------------------------------------------------------------------
+# Server utility class
+
+class UtilityServer(object):
+    """
+    Utility start/stop server
+    """
+    def __init__(self):
+        """
+        Sets up members
+        """
+        self._server = None
+        self._thread = None
+
+
+    def start(self, addr, port):
+        """
+        Starts the server
+
+        :param addr: A binding address
+        :param port: A listening port
+        :return: This object (for in-line calls)
+        """
+        # Create the server
+        self._server = server = SimpleJSONRPCServer((addr, port),
+                                                    logRequests=False)
+
+        # Register test methods
+        server.register_function(summation, 'sum')
+        server.register_function(summation, 'notify_sum')
+        server.register_function(notify_hello)
+        server.register_function(subtract)
+        server.register_function(update)
+        server.register_function(get_data)
+        server.register_function(add)
+        server.register_function(ping)
+        server.register_function(summation, 'namespace.sum')
+
+        # Serve in a thread
+        self._thread = threading.Thread(target=server.serve_forever)
+        self._thread.daemon = True
+        self._thread.start()
+
+        # Allow an in-line instantiation
+        return self
+
+
+    def stop(self):
+        """
+        Stops the server and waits for its thread to finish
+        """
+        self._server.shutdown()
+        self._server.server_close()
+        self._thread.join()
+
+        self._server = None
+        self._thread = None
+
+# ------------------------------------------------------------------------------
 
 class TestCompatibility(unittest.TestCase):
 
@@ -54,11 +159,29 @@ class TestCompatibility(unittest.TestCase):
     server = None
 
     def setUp(self):
+        """
+        Pre-test set up
+        """
+        # Set up the server
         self.port = PORTS.pop()
+        self.server = UtilityServer().start('', self.port)
+
+        # Set up the client
         self.history = jsonrpclib.history.History()
-        self.server = server_set_up(addr=('', self.port))
         self.client = Server('http://localhost:{0}'.format(self.port),
                              history=self.history)
+
+
+    def tearDown(self):
+        """
+        Post-test clean up
+        """
+        # Close the client
+        self.client("close")
+
+        # Stop the server
+        self.server.stop()
+
 
     # v1 tests forthcoming
 
@@ -132,7 +255,7 @@ class TestCompatibility(unittest.TestCase):
     def test_invalid_json(self):
         invalid_json = '{"jsonrpc": "2.0", "method": "foobar, ' + \
             '"params": "bar", "baz]'
-        response = self.client._run_request(invalid_json)
+        self.client._run_request(invalid_json)
         response = json.loads(self.history.response)
         verify_response = json.loads(
             '{"jsonrpc": "2.0", "error": {"code": -32700,' +
@@ -143,7 +266,7 @@ class TestCompatibility(unittest.TestCase):
 
     def test_invalid_request(self):
         invalid_request = '{"jsonrpc": "2.0", "method": 1, "params": "bar"}'
-        response = self.client._run_request(invalid_request)
+        self.client._run_request(invalid_request)
         response = json.loads(self.history.response)
         verify_response = json.loads(
             '{"jsonrpc": "2.0", "error": {"code": -32600, ' +
@@ -155,7 +278,7 @@ class TestCompatibility(unittest.TestCase):
     def test_batch_invalid_json(self):
         invalid_request = '[ {"jsonrpc": "2.0", "method": "sum", ' + \
             '"params": [1,2,4], "id": "1"},{"jsonrpc": "2.0", "method" ]'
-        response = self.client._run_request(invalid_request)
+        self.client._run_request(invalid_request)
         response = json.loads(self.history.response)
         verify_response = json.loads(
             '{"jsonrpc": "2.0", "error": {"code": -32700,' +
@@ -166,7 +289,7 @@ class TestCompatibility(unittest.TestCase):
 
     def test_empty_array(self):
         invalid_request = '[]'
-        response = self.client._run_request(invalid_request)
+        self.client._run_request(invalid_request)
         response = json.loads(self.history.response)
         verify_response = json.loads(
             '{"jsonrpc": "2.0", "error": {"code": -32600, ' +
@@ -178,7 +301,7 @@ class TestCompatibility(unittest.TestCase):
     def test_nonempty_array(self):
         invalid_request = '[1,2]'
         request_obj = json.loads(invalid_request)
-        response = self.client._run_request(invalid_request)
+        self.client._run_request(invalid_request)
         response = json.loads(self.history.response)
         self.assertTrue(len(response) == len(request_obj))
         for resp in response:
@@ -208,7 +331,7 @@ class TestCompatibility(unittest.TestCase):
             {"jsonrpc": "2.0", "method": "subtract", "params": [42,23], "id": "2"},
             {"foo": "boo"},
             {"jsonrpc": "2.0", "method": "foo.get", "params": {"name": "myself"}, "id": "5"},
-            {"jsonrpc": "2.0", "method": "get_data", "id": "9"} 
+            {"jsonrpc": "2.0", "method": "get_data", "id": "9"}
         ]""")
 
         # Thankfully, these are in order so testing is pretty simple.
@@ -267,19 +390,32 @@ class TestCompatibility(unittest.TestCase):
             self.assertTrue(req == valid_req)
         self.assertTrue(self.history.response == '')
 
+# ------------------------------------------------------------------------------
+
 class InternalTests(unittest.TestCase):
-    """ 
-    These tests verify that the client and server portions of 
+    """
+    These tests verify that the client and server portions of
     jsonrpclib talk to each other properly.
     """
-    client = None
     server = None
     port = None
 
     def setUp(self):
+        # Set up the server
         self.port = PORTS.pop()
+        self.server = UtilityServer().start('', self.port)
+
+        # Prepare the client
         self.history = jsonrpclib.history.History()
-        self.server = server_set_up(addr=('', self.port))
+
+
+    def tearDown(self):
+        """
+        Post-test clean up
+        """
+        # Stop the server
+        self.server.stop()
+
 
     def get_client(self):
         return Server('http://localhost:{0}'.format(self.port),
@@ -315,7 +451,7 @@ class InternalTests(unittest.TestCase):
 
     def test_single_namespace(self):
         client = self.get_client()
-        response = client.namespace.sum(1, 2, 4)
+        client.namespace.sum(1, 2, 4)
         request = json.loads(self.history.request)
         response = json.loads(self.history.response)
         verify_request = {
@@ -361,12 +497,12 @@ class InternalTests(unittest.TestCase):
                     return result[i]
                 self.assertRaises(raises[i], func)
 
+# ------------------------------------------------------------------------------
 
 class HeadersTests(unittest.TestCase):
     """
     These tests verify functionality of additional headers.
     """
-    client = None
     server = None
     port = None
 
@@ -376,8 +512,17 @@ class HeadersTests(unittest.TestCase):
         """
         Sets up the test
         """
+        # Set up the server
         self.port = PORTS.pop()
-        self.server = server_set_up(addr=('', self.port))
+        self.server = UtilityServer().start('', self.port)
+
+
+    def tearDown(self):
+        """
+        Post-test clean up
+        """
+        # Stop the server
+        self.server.stop()
 
 
     @contextlib.contextmanager
@@ -577,51 +722,7 @@ class HeadersTests(unittest.TestCase):
         self.assertTrue('x-level-2' in headers2)
         self.assertEqual(headers2['x-level-2'], '2')
 
-
-""" Test Methods """
-def subtract(minuend, subtrahend):
-    """ Using the keywords from the JSON-RPC v2 doc """
-    return minuend - subtrahend
-
-def add(x, y):
-    return x + y
-
-def update(*args):
-    return args
-
-def summation(*args):
-    return sum(args)
-
-def notify_hello(*args):
-    return args
-
-def get_data():
-    return ['hello', 5]
-
-def ping():
-    return True
-
-def server_set_up(addr, address_family=socket.AF_INET):
-    # Not sure this is a good idea to spin up a new server thread
-    # for each test... but it seems to work fine.
-    def log_request(self, *args, **kwargs):
-        """ Making the server output 'quiet' """
-        pass
-    SimpleJSONRPCRequestHandler.log_request = log_request
-    server = SimpleJSONRPCServer(addr, address_family=address_family)
-    server.register_function(summation, 'sum')
-    server.register_function(summation, 'notify_sum')
-    server.register_function(notify_hello)
-    server.register_function(subtract)
-    server.register_function(update)
-    server.register_function(get_data)
-    server.register_function(add)
-    server.register_function(ping)
-    server.register_function(summation, 'namespace.sum')
-    server_proc = Thread(target=server.serve_forever)
-    server_proc.daemon = True
-    server_proc.start()
-    return server_proc
+# ------------------------------------------------------------------------------
 
 if __name__ == '__main__':
     print("===============================================================")
