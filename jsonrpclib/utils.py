@@ -4,10 +4,10 @@
 Utility methods, for compatibility between Python version
 
 :author: Thomas Calmant
-:version: 1.0.0
+:version: 1.0.1
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 # ------------------------------------------------------------------------------
 
@@ -19,15 +19,6 @@ if sys.version_info[0] < 3:
     # Python 2
     import types
     StringTypes = types.StringTypes
-    TupleType = types.TupleType
-    ListType = types.ListType
-    DictType = types.DictType
-
-    iter_types = (
-        types.DictType,
-        types.ListType,
-        types.TupleType
-    )
 
     string_types = (
         types.StringType,
@@ -38,11 +29,6 @@ if sys.version_info[0] < 3:
         types.IntType,
         types.LongType,
         types.FloatType
-    )
-
-    value_types = (
-        types.BooleanType,
-        types.NoneType
     )
 
     def to_bytes(string):
@@ -68,15 +54,6 @@ if sys.version_info[0] < 3:
 else:
     # Python 3
     StringTypes = (str,)
-    TupleType = tuple
-    ListType = list
-    DictType = dict
-
-    iter_types = (
-        dict,
-        list,
-        tuple
-    )
 
     string_types = (
         bytes,
@@ -86,11 +63,6 @@ else:
     numeric_types = (
         int,
         float
-    )
-
-    value_types = (
-        bool,
-        type(None)
     )
 
     def to_bytes(string):
@@ -113,4 +85,22 @@ else:
 
 # ------------------------------------------------------------------------------
 # Common
+
+DictType = dict
+ListType = list
+SetTypes = (set, frozenset)
+TupleType = tuple
+
+iter_types = (
+    dict,
+    list,
+    set, frozenset,
+    tuple
+)
+
+value_types = (
+    bool,
+    type(None)
+)
+
 primitive_types = string_types + numeric_types + value_types
