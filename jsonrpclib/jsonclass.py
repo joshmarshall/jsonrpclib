@@ -200,11 +200,11 @@ def load(obj):
         raise TranslationError("Constructor args must be a dict or list, "
                                "not {0}".format(type(params).__name__))
 
-    for key, value in obj.items():
-        if key == '__jsonclass__':
-            # Ignore the __jsonclass__ member
-            continue
+    # Remove the class information, as it must be ignored during the
+    # reconstruction of the object
+    del obj['__jsonclass__']
 
+    for key, value in obj.items():
         setattr(new_obj, key, value)
 
     return new_obj
