@@ -188,10 +188,20 @@ def load(obj):
     # Create the object
     new_obj = None
     if isinstance(params, utils.ListType):
-        new_obj = json_class(*params)
+        try:
+            new_obj = json_class(*params)
+
+        except TypeError as ex:
+            raise TranslationError("Error instantiating {0}: {1}"\
+                                   .format(json_class.__name__, ex))
 
     elif isinstance(params, utils.DictType):
-        new_obj = json_class(**params)
+        try:
+            new_obj = json_class(**params)
+
+        except TypeError as ex:
+            raise TranslationError("Error instantiating {0}: {1}"\
+                                   .format(json_class.__name__, ex))
 
     else:
         raise TranslationError("Constructor args must be a dict or a list, "
