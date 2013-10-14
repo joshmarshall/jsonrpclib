@@ -14,8 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+# Module version
+__version_info__ = (0, 1, 6)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+
+# ------------------------------------------------------------------------------
+
 try:
     from setuptools import setup
+
 except ImportError:
     from distutils.core import setup
 
@@ -23,16 +33,16 @@ except ImportError:
 
 setup(
     name="jsonrpclib-pelix",
-    version="0.1.5",
+    version=__version__,
     license="http://www.apache.org/licenses/LICENSE-2.0",
     author="Thomas Calmant",
-    author_email="thomas.calmant@gmail.com",
+    author_email="thomas.calmant+github@gmail.com",
     url="http://github.com/tcalmant/jsonrpclib/",
     download_url='https://github.com/tcalmant/jsonrpclib/archive/master.zip',
-    description="Fork of jsonrpclib by Josh Marshall, usable with Pelix " \
-                "remote services." \
-                "This project is an implementation of the JSON-RPC v2.0 " \
-                "specification (backwards-compatible) as a client library.",
+    description="This project is an implementation of the JSON-RPC v2.0 " \
+                "specification (backwards-compatible) as a client library. " \
+                "Fork of jsonrpclib by Josh Marshall, usable with Pelix " \
+                "remote services.",
     long_description=open("README.rst").read(),
     packages=["jsonrpclib"],
     classifiers=[
