@@ -2,6 +2,9 @@
 *.pyc
 __pycache__
 
+# Tox
+.tox
+
 # When installed in develop mode
 *.egg-info/
 
