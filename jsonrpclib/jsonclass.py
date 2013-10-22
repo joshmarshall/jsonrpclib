@@ -145,20 +145,14 @@ def load(obj, classes=None):
 
     # List, set or tuple
     elif isinstance(obj, utils.iterable_types):
-        return_obj = [load(entry) for entry in obj]
-        if isinstance(obj, utils.TupleType):
-            return_obj = tuple(return_obj)
-
-        return return_obj
+        # This comes from a JSON parser, so it can only be a list...
+        return [load(entry) for entry in obj]
 
     # Otherwise, it's a dict type
     elif '__jsonclass__' not in obj.keys():
-        return_dict = {}
-        for key, value in obj.items():
-            return_dict[key] = load(value)
-        return return_dict
+        return dict((key, load(value)) for key, value in obj.items())
 
-    # It's a dict, and it has a __jsonclass__
+    # It's a dictionary, and it has a __jsonclass__
     orig_module_name = obj['__jsonclass__'][0]
     params = obj['__jsonclass__'][1]
 
@@ -228,6 +222,7 @@ def load(obj, classes=None):
     del obj['__jsonclass__']
 
     for key, value in obj.items():
-        setattr(new_obj, key, value)
+        # Recursive loading
+        setattr(new_obj, key, load(value, classes))
 
     return new_obj
