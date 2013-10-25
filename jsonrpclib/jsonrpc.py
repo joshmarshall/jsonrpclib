@@ -390,7 +390,12 @@ class ServerProxy(XMLServerProxy):
         """
         Closes the transport layer
         """
-        self.__transport.close()
+        try:
+            self.__transport.close()
+
+        except AttributeError:
+            # Not available in Python 2.6
+            pass
 
 
     def __call__(self, attr):
