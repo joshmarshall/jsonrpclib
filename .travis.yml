@@ -1,0 +1,13 @@
+language: python
+# python:
+#  - "3.3"
+#  - "3.2"
+#  - "2.7"
+#  - "2.6"
+
+before_install:
+  - pip install tox
+  - sudo apt-get install python2.6-dev python2.7-dev python3.2-dev python3.3-dev
+
+script: tox -e py26,py27,py32,py33
+
