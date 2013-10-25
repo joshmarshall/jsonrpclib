@@ -386,6 +386,29 @@ class ServerProxy(XMLServerProxy):
         # Same as original, just with new _Method reference
         return _Method(self._request, name)
 
+    def __close(self):
+        """
+        Closes the transport layer
+        """
+        self.__transport.close()
+
+
+    def __call__(self, attr):
+        """
+        A workaround to get special attributes on the ServerProxy
+        without interfering with the magic __getattr__
+
+        (code from xmlrpclib in Python 2.7)
+        """
+        if attr == "close":
+            return self.__close
+
+        elif attr == "transport":
+            return self.__transport
+
+        raise AttributeError("Attribute {0} not found".format(attr))
+
+
     @property
     def _notify(self):
         # Just like __getattr__, but with notify namespace.

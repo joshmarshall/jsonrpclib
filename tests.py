@@ -190,7 +190,7 @@ class TestCompatibility(unittest.TestCase):
         Post-test clean up
         """
         # Close the client
-        self.client("close")
+        self.client("close")()
 
         # Stop the server
         self.server.stop()
