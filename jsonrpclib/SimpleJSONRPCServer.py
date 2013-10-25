@@ -502,7 +502,7 @@ class WSGIJSONRPCApp(SimpleJSONRPCDispatcher):
             msg_len = int(environ.get('CONTENT_LENGTH', 0))
         except ValueError:
             msg_len = 0
-        msg = environ['wsgi.input'].read(msg_len)
+        msg = environ['wsgi.input'].read(msg_len).decode(self.encoding)
         response = self._marshaled_dispatch(msg).encode(self.encoding)
         headers = [('Content-Type', self.json_config.content_type),
                    ('Content-Length', str(len(response)))]
