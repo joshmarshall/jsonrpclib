@@ -478,3 +478,33 @@ class CGIJSONRPCRequestHandler(SimpleJSONRPCDispatcher):
 
     # XML-RPC alias
     handle_xmlrpc = handle_jsonrpc
+
+# ------------------------------------------------------------------------------
+
+class WSGIJSONRPCApp(SimpleJSONRPCDispatcher):
+    """
+    WSGI compatible JSON-RPC dispatcher
+    """
+    def __init__(self, encoding=None, config=jsonrpclib.config.DEFAULT):
+        """
+        Sets up the dispatcher
+
+        :param encoding: Dispatcher encoding
+        :param config: A JSONRPClib Config instance
+        """
+        SimpleJSONRPCDispatcher.__init__(self, encoding, config)
+
+    def __call__(self, environ, start_response):
+        """
+        WSGI application callable.  See the WSGI spec
+        """
+        try:
+            msg_len = int(environ.get('CONTENT_LENGTH', 0))
+        except ValueError:
+            msg_len = 0
+        msg = environ['wsgi.input'].read(msg_len)
+        response = self._marshaled_dispatch(msg).encode(self.encoding)
+        headers = [('Content-Type', self.json_config.content_type),
+                   ('Content-Length', str(len(response)))]
+        start_response('200 OK', headers)
+        return (response,)

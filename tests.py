@@ -48,7 +48,7 @@ __docformat__ = "restructuredtext en"
 
 # jsonrpclib
 from jsonrpclib import Server, MultiCall, ProtocolError
-from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
+from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer, WSGIJSONRPCApp
 from jsonrpclib.utils import from_bytes
 import jsonrpclib.history
 
@@ -59,6 +59,8 @@ import sys
 import threading
 import time
 import unittest
+import wsgiref.validate
+import wsgiref.simple_server
 
 try:
     # Python 2
@@ -105,6 +107,19 @@ def get_data():
 def ping():
     return True
 
+@staticmethod
+def TCPJSONRPCServer(addr, port):
+    return SimpleJSONRPCServer((addr, port), logRequests=False)
+
+@staticmethod
+def WSGIJSONRPCServer(addr, port):
+    class NoLogHandler(wsgiref.simple_server.WSGIRequestHandler):
+        def log_message(self, format, *args):
+            pass
+
+    return wsgiref.simple_server.make_server(addr, port, WSGIJSONRPCApp(),
+         handler_class=NoLogHandler)
+
 # ------------------------------------------------------------------------------
 # Server utility class
 
@@ -120,17 +135,19 @@ class UtilityServer(object):
         self._thread = None
 
 
-    def start(self, addr, port):
+    def start(self, server_cls, addr, port):
         """
         Starts the server
 
+        :param server_cls: Callable that returns a subclass of XMLRPCServer
         :param addr: A binding address
         :param port: A listening port
         :return: This object (for in-line calls)
         """
         # Create the server
-        self._server = server = SimpleJSONRPCServer((addr, port),
-                                                    logRequests=False)
+        self._server = server = server_cls(addr, port)
+        if hasattr(server, 'get_app'):
+            server = server.get_app()
 
         # Register test methods
         server.register_function(summation, 'sum')
@@ -144,7 +161,7 @@ class UtilityServer(object):
         server.register_function(summation, 'namespace.sum')
 
         # Serve in a thread
-        self._thread = threading.Thread(target=server.serve_forever)
+        self._thread = threading.Thread(target=self._server.serve_forever)
         self._thread.daemon = True
         self._thread.start()
 
@@ -170,6 +187,7 @@ class TestCompatibility(unittest.TestCase):
     client = None
     port = None
     server = None
+    server_cls = TCPJSONRPCServer
 
     def setUp(self):
         """
@@ -177,7 +195,7 @@ class TestCompatibility(unittest.TestCase):
         """
         # Set up the server
         self.port = PORTS.pop()
-        self.server = UtilityServer().start('', self.port)
+        self.server = UtilityServer().start(self.server_cls, '', self.port)
 
         # Set up the client
         self.history = jsonrpclib.history.History()
@@ -405,6 +423,11 @@ class TestCompatibility(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
+class WSGITestCompatibility(TestCompatibility):
+    server_cls = WSGIJSONRPCServer
+
+# ------------------------------------------------------------------------------
+
 class InternalTests(unittest.TestCase):
     """
     These tests verify that the client and server portions of
@@ -412,11 +435,12 @@ class InternalTests(unittest.TestCase):
     """
     server = None
     port = None
+    server_cls = TCPJSONRPCServer
 
     def setUp(self):
         # Set up the server
         self.port = PORTS.pop()
-        self.server = UtilityServer().start('', self.port)
+        self.server = UtilityServer().start(self.server_cls, '', self.port)
 
         # Prepare the client
         self.history = jsonrpclib.history.History()
@@ -512,12 +536,18 @@ class InternalTests(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
+class WSGIInternalTests(InternalTests):
+    server_cls = WSGIJSONRPCServer
+
+# ------------------------------------------------------------------------------
+
 class HeadersTests(unittest.TestCase):
     """
     These tests verify functionality of additional headers.
     """
     server = None
     port = None
+    server_cls = TCPJSONRPCServer
 
     REQUEST_LINE = "^send: POST"
 
@@ -527,7 +557,7 @@ class HeadersTests(unittest.TestCase):
         """
         # Set up the server
         self.port = PORTS.pop()
-        self.server = UtilityServer().start('', self.port)
+        self.server = UtilityServer().start(self.server_cls, '', self.port)
 
 
     def tearDown(self):
@@ -734,6 +764,11 @@ class HeadersTests(unittest.TestCase):
         self.assertEqual(headers1['x-level-1'], '1')
         self.assertTrue('x-level-2' in headers2)
         self.assertEqual(headers2['x-level-2'], '2')
+
+# ------------------------------------------------------------------------------
+
+class WSGIHeadersTests(HeadersTests):
+    server_cls = WSGIJSONRPCServer
 
 # ------------------------------------------------------------------------------
 
