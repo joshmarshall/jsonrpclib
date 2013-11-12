@@ -525,7 +525,7 @@ def check_for_errors(result):
         raise ValueError('Response does not have a result or error key.')
     if 'error' in result.keys() and result['error'] != None:
         code = result['error']['code']
-        message = result['error']['message']
+        message = result['error']['message'] + ": " + result['error']['data']
         raise ProtocolError((code, message))
     return result
 
