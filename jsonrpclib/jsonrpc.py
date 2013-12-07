@@ -282,6 +282,15 @@ class _Method(XML_Method):
         # The only thing that changes is the name.
         #return _Method(self.__send, "%s.%s" % (self.__name, name))
 
+    def __repr__(self):
+        return '<{} "{}">'.format(self.__class__.__name__, self.__name)
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __dir__(self):
+        return self.__dict__.keys()
+
 class _Notify(object):
     def __init__(self, request):
         self._request = request
