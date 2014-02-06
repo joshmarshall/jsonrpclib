@@ -214,7 +214,7 @@ class SimpleJSONRPCServer(SocketServer.TCPServer, SimpleJSONRPCDispatcher):
             flags |= fcntl.FD_CLOEXEC
             fcntl.fcntl(self.fileno(), fcntl.F_SETFD, flags)
 
-class CGIJSONRPCRequestHandler(SimpleJSONRPCDispatcher):
+class CGIJSONRPCRequestHandler(SimpleJSONRPCDispatcher, SimpleXMLRPCServer.CGIXMLRPCRequestHandler):
 
     def __init__(self, encoding=None):
         SimpleJSONRPCDispatcher.__init__(self, encoding)
