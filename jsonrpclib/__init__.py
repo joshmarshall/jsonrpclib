@@ -1,6 +1,14 @@
-from jsonrpclib.config import Config
-config = Config.instance()
-from jsonrpclib.history import History
-history = History.instance()
-from jsonrpclib.jsonrpc import Server, MultiCall, Fault
-from jsonrpclib.jsonrpc import ProtocolError, loads, dumps
+#!/usr/bin/python
+# -- Content-Encoding: UTF-8 --
+"""
+Aliases to ease access to jsonrpclib classes
+
+:license: Apache License 2.0
+"""
+
+# Easy access to utility methods and classes
+from jsonrpclib.jsonrpc import Server, ServerProxy
+from jsonrpclib.jsonrpc import MultiCall, Fault, ProtocolError, AppError
+from jsonrpclib.jsonrpc import loads, dumps, load, dump
+from jsonrpclib.jsonrpc import jloads, jdumps
+import jsonrpclib.utils as utils
