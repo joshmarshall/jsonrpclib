@@ -1,3 +1,13 @@
+# Bytecoded form
 *.pyc
+__pycache__
+
+# Tox
+.tox
+
+# When installed in develop mode
+*.egg-info/
+
+# setup.py folders
 build/*
 dist/*
