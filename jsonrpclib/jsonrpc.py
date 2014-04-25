@@ -414,7 +414,7 @@ class Payload(dict):
             version = config.version
         self.id = rpcid
         self.version = float(version)
-    
+
     def request(self, method, params=[]):
         if type(method) not in types.StringTypes:
             raise ValueError('Method name must be a string.')
@@ -422,7 +422,7 @@ class Payload(dict):
             self.id = random_id()
         request = { 'id':self.id, 'method':method }
         if params:
-            if (len(params) == 1) and isinstance(params[0], dict):
+            if (len(params) == 1) and isinstance(params[0], dict) and config.convert_only_dict:
                 request['params'] = params[0]
             else:
                 request['params'] = params

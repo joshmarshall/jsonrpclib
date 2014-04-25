@@ -30,7 +30,11 @@ class Config(object):
         '.'.join([str(ver) for ver in sys.version_info[0:3]])
     # User agent to use for calls.
     _instance = None
-    
+    # If there is only one parameter and that is a dictionary, convert the
+    # whole params member to that dictionary, instead of passing an array with
+    # the dictionary as its only element
+    convert_only_dict = False
+
     @classmethod
     def instance(cls):
         if not cls._instance:
