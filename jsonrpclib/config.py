@@ -34,6 +34,12 @@ class Config(object):
     # whole params member to that dictionary, instead of passing an array with
     # the dictionary as its only element
     convert_only_dict = False
+    # If set to True, if the params is a dictionary, and has an authentication
+    # token (set in config.auth_token_name), that will be added to the request
+    # as request['auth']
+    extract_auth_token = False
+    # The name to be extracted as the authentication token
+    auth_token_name = None
 
     @classmethod
     def instance(cls):

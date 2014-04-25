@@ -426,6 +426,10 @@ class Payload(dict):
         request = { 'id':self.id, 'method':method }
         if params:
             if (len(params) == 1) and isinstance(params[0], dict) and config.convert_only_dict:
+                if config.extract_auth_token and config.auth_token_name:
+                    if config.auth_token_name in params[0]:
+                        request[config.auth_token_name] = params[0][config.auth_token_name]
+                        del params[0][config.auth_token_name]
                 request['params'] = params[0]
             else:
                 request['params'] = params
