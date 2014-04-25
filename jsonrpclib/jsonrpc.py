@@ -422,7 +422,10 @@ class Payload(dict):
             self.id = random_id()
         request = { 'id':self.id, 'method':method }
         if params:
-            request['params'] = params
+            if (len(params) == 1) and isinstance(params[0], dict):
+                request['params'] = params[0]
+            else:
+                request['params'] = params
         if self.version >= 2:
             request['jsonrpc'] = str(self.version)
         return request
