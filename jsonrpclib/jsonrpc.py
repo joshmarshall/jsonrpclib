@@ -414,6 +414,7 @@ class Payload(dict):
             version = config.version
         self.id = rpcid
         self.version = float(version)
+	self.extras = config.extras
     
     def request(self, method, params=[]):
         if type(method) not in types.StringTypes:
@@ -421,6 +422,8 @@ class Payload(dict):
         if not self.id:
             self.id = random_id()
         request = { 'id':self.id, 'method':method }
+	request.update(self.extras)
+
         if params:
             request['params'] = params
         if self.version >= 2:
