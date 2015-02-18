@@ -116,8 +116,14 @@ class TransportMixIn(object):
     # for Python 2.7 support
     _connection = None
 
+    DEFAULT_CONTENT_TYPE = "application/json-rpc"
+
+    def __init__(self, *args, **kwargs):
+        self.content_type = kwargs.pop("content_type", self.DEFAULT_CONTENT_TYPE)
+        super(TransportMixIn, self).__init__(*args, **kwargs)
+
     def send_content(self, connection, request_body):
-        connection.putheader("Content-Type", "application/json-rpc")
+        connection.putheader("Content-Type", self.content_type)
         connection.putheader("Content-Length", str(len(request_body)))
         connection.endheaders()
         if request_body:
@@ -187,7 +193,7 @@ class ServerProxy(XMLServerProxy):
     """
 
     def __init__(self, uri, transport=None, encoding=None, 
-                 verbose=0, version=None):
+                 verbose=0, version=None, content_type=None):
         import urllib
         if not version:
             version = config.version
@@ -209,11 +215,11 @@ class ServerProxy(XMLServerProxy):
                 self.__handler == '/'
         if transport is None:
             if schema == 'unix':
-                transport = UnixTransport()
+                transport = UnixTransport(content_type=content_type)
             elif schema == 'https':
-                transport = SafeTransport()
+                transport = SafeTransport(content_type=content_type)
             else:
-                transport = Transport()
+                transport = Transport(content_type=content_type)
         self.__transport = transport
         self.__encoding = encoding
         self.__verbose = verbose
