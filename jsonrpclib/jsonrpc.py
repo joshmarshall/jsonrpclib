@@ -148,10 +148,15 @@ class JSONTarget(object):
         return ''.join(self.data)
 
 class Transport(TransportMixIn, XMLTransport):
-    pass
+    def __init__(self):
+        TransportMixIn.__init__(self)
+        XMLTransport.__init__(self)
 
 class SafeTransport(TransportMixIn, XMLSafeTransport):
-    pass
+    def __init__(self):
+        TransportMixIn.__init__(self)
+        XMLSafeTransport.__init__(self)
+
 from httplib import HTTP, HTTPConnection
 from socket import socket
 
