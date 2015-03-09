@@ -6,7 +6,7 @@ class LocalClasses(dict):
 
 class Config(object):
     """
-    This is pretty much used exclusively for the 'jsonclass' 
+    This is pretty much used exclusively for the 'jsonclass'
     functionality... set use_jsonclass to False to turn it off.
     You can change serialize_method and ignore_attribute, or use
     the local_classes.add(class) to include "local" classes.
@@ -15,7 +15,7 @@ class Config(object):
     # Change to False to keep __jsonclass__ entries raw.
     serialize_method = '_serialize'
     # The serialize_method should be a string that references the
-    # method on a custom class object which is responsible for 
+    # method on a custom class object which is responsible for
     # returning a tuple of the constructor arguments and a dict of
     # attributes.
     ignore_attribute = '_ignore'
@@ -30,7 +30,17 @@ class Config(object):
         '.'.join([str(ver) for ver in sys.version_info[0:3]])
     # User agent to use for calls.
     _instance = None
-    
+    # If there is only one parameter and that is a dictionary, convert the
+    # whole params member to that dictionary, instead of passing an array with
+    # the dictionary as its only element
+    convert_only_dict = False
+    # If set to True, if the params is a dictionary, and has an authentication
+    # token (set in config.auth_token_name), that will be added to the request
+    # as request['auth']
+    extract_auth_token = False
+    # The name to be extracted as the authentication token
+    auth_token_name = None
+
     @classmethod
     def instance(cls):
         if not cls._instance:
