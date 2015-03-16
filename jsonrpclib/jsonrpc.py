@@ -426,7 +426,7 @@ class Payload(dict):
         if not self.id:
             self.id = random_id()
         request = { 'id':self.id, 'method':method }
-        if params:
+        if params or self.version < 1.1:
             request['params'] = params
         if self.version >= 2:
             request['jsonrpc'] = str(self.version)
@@ -529,9 +529,15 @@ def check_for_errors(result):
     if 'result' not in result.keys() and 'error' not in result.keys():
         raise ValueError('Response does not have a result or error key.')
     if 'error' in result.keys() and result['error'] != None:
-        code = result['error']['code']
-        message = result['error']['message']
-        raise ProtocolError((code, message))
+        if 'code' in result['error'] and 'message' in result['error']:
+            code = result['error']['code']
+            message = result['error']['message']
+            raise ProtocolError((code, message))
+        elif type(result['error']) is dict and len(result['error']) == 1:
+            error_key = result['error'].keys()[0]
+            raise ProtocolError(result['error'][error_key])
+        else:
+            raise ProtocolError(result['error'])
     return result
 
 def isbatch(result):
