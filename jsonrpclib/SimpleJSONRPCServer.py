@@ -58,7 +58,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
         response = None
         try:
             request = jsonrpclib.loads(data)
-        except Exception, e:
+        except Exception as e:
             fault = Fault(-32700, 'Request %s invalid. (%s)' % (data, e))
             response = fault.response()
             return response
@@ -167,7 +167,7 @@ class SimpleJSONRPCRequestHandler(
             data = ''.join(L)
             response = self.server._marshaled_dispatch(data)
             self.send_response(200)
-        except Exception, e:
+        except Exception as e:
             self.send_response(500)
             err_lines = traceback.format_exc().splitlines()
             trace_string = '%s | %s' % (err_lines[-3], err_lines[-1])
