@@ -2,32 +2,36 @@ import types
 import inspect
 import re
 import traceback
+import sys
 
 from jsonrpclib import config
 
 iter_types = [
-    types.DictType,
-    types.ListType,
-    types.TupleType
+    dict,
+    list,
+    tuple
 ]
 
 string_types = [
-    types.StringType,
-    types.UnicodeType
+    bytes,
+    str
 ]
 
 numeric_types = [
-    types.IntType,
-    types.LongType,
-    types.FloatType
+    int,
+    float
 ]
 
 value_types = [
-    types.BooleanType,
-    types.NoneType
+    bool,
+    type(None)
 ]
 
-supported_types = iter_types+string_types+numeric_types+value_types
+# Python < 3 distinguishes int and long
+if sys.version_info < (3,):
+    numeric_types.append(long)
+
+supported_types = iter_types + string_types + numeric_types + value_types
 invalid_module_chars = r'[^a-zA-Z0-9\_\.]'
 
 class TranslationError(Exception):
@@ -43,12 +47,12 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
     if obj_type in numeric_types+string_types+value_types:
         return obj
     if obj_type in iter_types:
-        if obj_type in (types.ListType, types.TupleType):
+        if obj_type in (list, tuple):
             new_obj = []
             for item in obj:
                 new_obj.append(dump(item, serialize_method,
                                      ignore_attribute, ignore))
-            if obj_type is types.TupleType:
+            if obj_type is tuple:
                 new_obj = tuple(new_obj)
             return new_obj
         # It's a dict...
@@ -92,7 +96,7 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
 def load(obj):
     if type(obj) in string_types+numeric_types+value_types:
         return obj
-    if type(obj) is types.ListType:
+    if type(obj) is list:
         return_list = []
         for entry in obj:
             return_list.append(load(entry))
@@ -139,9 +143,9 @@ def load(obj):
         json_class = getattr(temp_module, json_class_name)
     # Creating the object...
     new_obj = None
-    if type(params) is types.ListType:
+    if type(params) is list:
         new_obj = json_class(*params)
-    elif type(params) is types.DictType:
+    elif type(params) is dict:
         new_obj = json_class(**params)
     else:
         raise TranslationError('Constructor args must be a dict or list.')

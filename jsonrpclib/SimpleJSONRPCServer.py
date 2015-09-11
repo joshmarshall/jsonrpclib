@@ -25,7 +25,7 @@ def get_version(request):
     return None
     
 def validate_request(request):
-    if type(request) is not types.DictType:
+    if type(request) is not dict:
         fault = Fault(
             -32600, 'Request must be {}, not %s.' % type(request)
         )
@@ -38,8 +38,8 @@ def validate_request(request):
     request.setdefault('params', [])
     method = request.get('method', None)
     params = request.get('params')
-    param_types = (types.ListType, types.DictType, types.TupleType)
-    if not method or type(method) not in types.StringTypes or \
+    param_types = (list, dict, tuple)
+    if not method or type(method) not in str or \
         type(params) not in param_types:
         fault = Fault(
             -32600, 'Invalid request parameters or method.', rpcid=rpcid
@@ -65,7 +65,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
         if not request:
             fault = Fault(-32600, 'Request invalid -- no request data.')
             return fault.response()
-        if type(request) is types.ListType:
+        if type(request) is list:
             # This SHOULD be a batch, by spec
             responses = []
             for req_entry in request:
@@ -133,7 +133,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
                         pass
         if func is not None:
             try:
-                if type(params) is types.ListType:
+                if type(params) is list:
                     response = func(*params)
                 else:
                     response = func(**params)

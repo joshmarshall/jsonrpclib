@@ -421,7 +421,7 @@ class Payload(dict):
         self.version = float(version)
     
     def request(self, method, params=[]):
-        if type(method) not in types.StringTypes:
+        if type(method) not in str:
             raise ValueError('Method name must be a string.')
         if not self.id:
             self.id = random_id()
@@ -465,8 +465,8 @@ def dumps(params=[], methodname=None, methodresponse=None,
     """
     if not version:
         version = config.version
-    valid_params = (types.TupleType, types.ListType, types.DictType)
-    if methodname in types.StringTypes and \
+    valid_params = (tuple, list, dict)
+    if methodname in str and \
             type(params) not in valid_params and \
             not isinstance(params, Fault):
         """ 
@@ -482,7 +482,7 @@ def dumps(params=[], methodname=None, methodresponse=None,
     if type(params) is Fault:
         response = payload.error(params.faultCode, params.faultString)
         return jdumps(response, encoding=encoding)
-    if type(methodname) not in types.StringTypes and methodresponse != True:
+    if type(methodname) not in str and methodresponse != True:
         raise ValueError('Method name must be a string, or methodresponse '+
                          'must be set to True.')
     if config.use_jsonclass == True:
@@ -522,7 +522,7 @@ def check_for_errors(result):
     if not result:
         # Notification
         return result
-    if type(result) is not types.DictType:
+    if type(result) is not dict:
         raise TypeError('Response is not a dict.')
     if 'jsonrpc' in result.keys() and float(result['jsonrpc']) > 2.0:
         raise NotImplementedError('JSON-RPC version not yet supported.')
@@ -535,11 +535,11 @@ def check_for_errors(result):
     return result
 
 def isbatch(result):
-    if type(result) not in (types.ListType, types.TupleType):
+    if type(result) not in (list, tuple):
         return False
     if len(result) < 1:
         return False
-    if type(result[0]) is not types.DictType:
+    if type(result[0]) is not dict:
         return False
     if 'jsonrpc' not in result[0].keys():
         return False
