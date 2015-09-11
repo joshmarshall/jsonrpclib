@@ -163,7 +163,10 @@ class SafeTransport(TransportMixIn, XMLSafeTransport):
         TransportMixIn.__init__(self)
         XMLSafeTransport.__init__(self)
 
-from httplib import HTTP, HTTPConnection
+if sys.version_info < (3,):
+    from httplib import HTTPConnection
+else:
+    from http.client import HTTPConnection
 from socket import socket
 
 USE_UNIX_SOCKETS = False
@@ -181,14 +184,14 @@ if (USE_UNIX_SOCKETS):
             self.sock = socket(AF_UNIX, SOCK_STREAM)
             self.sock.connect(self.host)
 
-    class UnixHTTP(HTTP):
-        _connection_class = UnixHTTPConnection
-
     class UnixTransport(TransportMixIn, XMLTransport):
         def make_connection(self, host):
-            import httplib
-            host, extra_headers, x509 = self.get_host_info(host)
-            return UnixHTTP(host)
+            # Return an existing connection if possible.
+            if self._connection and host == self._connection[0]:
+                return self._connection[1]
+            host, nxtra_headers, x509 = self.get_host_info(host)
+            self._connection = host, UnixHTTPConnection()
+            return self._connection[1]
 
     
 class ServerProxy(XMLServerProxy):
