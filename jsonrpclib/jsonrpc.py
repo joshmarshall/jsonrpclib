@@ -46,12 +46,18 @@ appropriately.
 See http://code.google.com/p/jsonrpclib/ for more info.
 """
 
-import types
 import sys
-from xmlrpclib import Transport as XMLTransport
-from xmlrpclib import SafeTransport as XMLSafeTransport
-from xmlrpclib import ServerProxy as XMLServerProxy
-from xmlrpclib import _Method as XML_Method
+# Xmlrpc is split into client and server sub-modules in Python 3. 
+if sys.version_info < (3,):
+    from xmlrpclib import Transport as XMLTransport
+    from xmlrpclib import SafeTransport as XMLSafeTransport
+    from xmlrpclib import ServerProxy as XMLServerProxy
+    from xmlrpclib import _Method as XML_Method
+else:
+    from xmlrpc.client import Transport as XMLTransport
+    from xmlrpc.client import SafeTransport as XMLSafeTransport
+    from xmlrpc.client import ServerProxy as XMLServerProxy
+    from xmlrpc.client import _Method as XML_Method
 import time
 import string
 import random
