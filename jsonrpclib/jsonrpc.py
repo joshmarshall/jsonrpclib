@@ -202,11 +202,14 @@ class ServerProxy(XMLServerProxy):
 
     def __init__(self, uri, transport=None, encoding=None, 
                  verbose=0, version=None):
-        import urllib
+        if sys.version_info < (3,):
+            from urllib import splittype, splithost
+        else:
+            from urllib.parse import splittype, splithost
         if not version:
             version = config.version
         self.__version = version
-        schema, uri = urllib.splittype(uri)
+        schema, uri = splittype(uri)
         if schema not in ('http', 'https', 'unix'):
             raise IOError('Unsupported JSON-RPC protocol.')
         if schema == 'unix':
@@ -216,7 +219,7 @@ class ServerProxy(XMLServerProxy):
             self.__host = uri
             self.__handler = '/'
         else:
-            self.__host, self.__handler = urllib.splithost(uri)
+            self.__host, self.__handler = splithost(uri)
             if not self.__handler:
                 # Not sure if this is in the JSON spec?
                 #self.__handler = '/'
