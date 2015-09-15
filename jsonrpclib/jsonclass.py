@@ -58,7 +58,7 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
         # It's a dict...
         else:
             new_obj = {}
-            for key, value in obj.iteritems():
+            for key, value in obj.items():
                 new_obj[key] = dump(value, serialize_method,
                                      ignore_attribute, ignore)
             return new_obj
@@ -84,7 +84,7 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
     return_obj['__jsonclass__'].append([])
     attrs = {}
     ignore_list = getattr(obj, ignore_attribute, [])+ignore
-    for attr_name, attr_value in obj.__dict__.iteritems():
+    for attr_name, attr_value in obj.__dict__.items():
         if type(attr_value) in supported_types and \
                 attr_name not in ignore_list and \
                 attr_value not in ignore_list:
@@ -104,7 +104,7 @@ def load(obj):
     # Othewise, it's a dict type
     if '__jsonclass__' not in obj.keys():
         return_dict = {}
-        for key, value in obj.iteritems():
+        for key, value in obj.items():
             new_value = load(value)
             return_dict[key] = new_value
         return return_dict
@@ -149,7 +149,7 @@ def load(obj):
         new_obj = json_class(**params)
     else:
         raise TranslationError('Constructor args must be a dict or list.')
-    for key, value in obj.iteritems():
+    for key, value in obj.items():
         if key == '__jsonclass__':
             continue
         setattr(new_obj, key, value)
