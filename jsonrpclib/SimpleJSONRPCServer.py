@@ -1,13 +1,20 @@
 from __future__ import print_function
+import sys
 import jsonrpclib
 from jsonrpclib import Fault
 from jsonrpclib.jsonrpc import USE_UNIX_SOCKETS
-import SimpleXMLRPCServer
+if sys.version_info < (3,):
+    from SimpleXMLRPCServer import SimpleXMLRPCDispatcher
+    from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
+    from SimpleXMLRPCServer import resolve_dotted_attribute
+else:
+    from xmlrpc.server import SimpleXMLRPCDispatcher
+    from xmlrpc.server import SimpleXMLRPCRequestHandler
+    from xmlrpc.server import resolve_dotted_attribute
 import SocketServer
 import socket
 import logging
 import os
-import types
 import traceback
 import sys
 try:
@@ -47,11 +54,10 @@ def validate_request(request):
         return fault
     return True
 
-class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
+class SimpleJSONRPCDispatcher(SimpleXMLRPCDispatcher):
 
     def __init__(self, encoding=None):
-        SimpleXMLRPCServer.SimpleXMLRPCDispatcher.__init__(self,
-                                        allow_none=True,
+        SimpleXMLRPCDispatcher.__init__(self, allow_none=True,
                                         encoding=encoding)
 
     def _marshaled_dispatch(self, data, dispatch_method = None):
@@ -124,7 +130,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
                     return self.instance._dispatch(method, params)
                 else:
                     try:
-                        func = SimpleXMLRPCServer.resolve_dotted_attribute(
+                        func = resolve_dotted_attribute(
                             self.instance,
                             method,
                             True
@@ -149,8 +155,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
         else:
             return Fault(-32601, 'Method %s not supported.' % method)
 
-class SimpleJSONRPCRequestHandler(
-        SimpleXMLRPCServer.SimpleXMLRPCRequestHandler):
+class SimpleJSONRPCRequestHandler(SimpleXMLRPCRequestHandler):
     
     def do_POST(self):
         if not self.is_rpc_path_valid():
