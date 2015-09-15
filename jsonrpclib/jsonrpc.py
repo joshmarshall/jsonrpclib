@@ -433,7 +433,7 @@ class Payload(dict):
         self.version = float(version)
     
     def request(self, method, params=[]):
-        if type(method) not in str:
+        if type(method) is not str:
             raise ValueError('Method name must be a string.')
         if not self.id:
             self.id = random_id()
@@ -477,8 +477,8 @@ def dumps(params=[], methodname=None, methodresponse=None,
     """
     if not version:
         version = config.version
-    valid_params = (tuple, list, dict)
-    if methodname in str and \
+    valid_params = [tuple, list, dict]
+    if methodname is str and \
             type(params) not in valid_params and \
             not isinstance(params, Fault):
         """ 
@@ -494,7 +494,7 @@ def dumps(params=[], methodname=None, methodresponse=None,
     if type(params) is Fault:
         response = payload.error(params.faultCode, params.faultString)
         return jdumps(response, encoding=encoding)
-    if type(methodname) not in str and methodresponse != True:
+    if type(methodname) is not str and methodresponse != True:
         raise ValueError('Method name must be a string, or methodresponse '+
                          'must be set to True.')
     if config.use_jsonclass == True:
