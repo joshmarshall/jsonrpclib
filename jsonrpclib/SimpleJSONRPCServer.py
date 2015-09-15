@@ -7,11 +7,12 @@ if sys.version_info < (3,):
     from SimpleXMLRPCServer import SimpleXMLRPCDispatcher
     from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
     from SimpleXMLRPCServer import resolve_dotted_attribute
+    from SocketServer import TCPServer
 else:
     from xmlrpc.server import SimpleXMLRPCDispatcher
     from xmlrpc.server import SimpleXMLRPCRequestHandler
     from xmlrpc.server import resolve_dotted_attribute
-import SocketServer
+    from socketserver import TCPServer
 import socket
 import logging
 import os
@@ -187,7 +188,7 @@ class SimpleJSONRPCRequestHandler(SimpleXMLRPCRequestHandler):
         self.wfile.flush()
         self.connection.shutdown(1)
 
-class SimpleJSONRPCServer(SocketServer.TCPServer, SimpleJSONRPCDispatcher):
+class SimpleJSONRPCServer(TCPServer, SimpleJSONRPCDispatcher):
 
     allow_reuse_address = True
 
@@ -211,9 +212,9 @@ class SimpleJSONRPCServer(SocketServer.TCPServer, SimpleJSONRPCDispatcher):
                     logging.warning("Could not unlink socket %s", addr)
         # if python 2.5 and lower
         if vi[0] < 3 and vi[1] < 6:
-            SocketServer.TCPServer.__init__(self, addr, requestHandler)
+            TCPServer.__init__(self, addr, requestHandler)
         else:
-            SocketServer.TCPServer.__init__(self, addr, requestHandler,
+            TCPServer.__init__(self, addr, requestHandler,
                 bind_and_activate)
         if fcntl is not None and hasattr(fcntl, 'FD_CLOEXEC'):
             flags = fcntl.fcntl(self.fileno(), fcntl.F_GETFD)
