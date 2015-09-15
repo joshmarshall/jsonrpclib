@@ -34,7 +34,7 @@ except ImportError:
     import simplejson as json
 from threading import Thread
 
-PORTS = range(8000, 8999)
+PORTS = list(range(8000, 8999))
 
 class TestCompatibility(unittest.TestCase):
     
@@ -449,8 +449,8 @@ def server_set_up(addr, address_family=socket.AF_INET):
     return server_proc
 
 if __name__ == '__main__':
-    print "==============================================================="
-    print "  NOTE: There may be threading exceptions after tests finish.  "
-    print "==============================================================="
+    print("===============================================================")
+    print("  NOTE: There may be threading exceptions after tests finish.  ")
+    print("===============================================================")
     time.sleep(2)
     unittest.main()

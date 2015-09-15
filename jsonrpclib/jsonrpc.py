@@ -46,12 +46,18 @@ appropriately.
 See http://code.google.com/p/jsonrpclib/ for more info.
 """
 
-import types
 import sys
-from xmlrpclib import Transport as XMLTransport
-from xmlrpclib import SafeTransport as XMLSafeTransport
-from xmlrpclib import ServerProxy as XMLServerProxy
-from xmlrpclib import _Method as XML_Method
+# Xmlrpc is split into client and server sub-modules in Python 3. 
+if sys.version_info < (3,):
+    from xmlrpclib import Transport as XMLTransport
+    from xmlrpclib import SafeTransport as XMLSafeTransport
+    from xmlrpclib import ServerProxy as XMLServerProxy
+    from xmlrpclib import _Method as XML_Method
+else:
+    from xmlrpc.client import Transport as XMLTransport
+    from xmlrpc.client import SafeTransport as XMLSafeTransport
+    from xmlrpc.client import ServerProxy as XMLServerProxy
+    from xmlrpc.client import _Method as XML_Method
 import time
 import string
 import random
@@ -157,7 +163,10 @@ class SafeTransport(TransportMixIn, XMLSafeTransport):
         TransportMixIn.__init__(self)
         XMLSafeTransport.__init__(self)
 
-from httplib import HTTP, HTTPConnection
+if sys.version_info < (3,):
+    from httplib import HTTPConnection
+else:
+    from http.client import HTTPConnection
 from socket import socket
 
 USE_UNIX_SOCKETS = False
@@ -175,14 +184,14 @@ if (USE_UNIX_SOCKETS):
             self.sock = socket(AF_UNIX, SOCK_STREAM)
             self.sock.connect(self.host)
 
-    class UnixHTTP(HTTP):
-        _connection_class = UnixHTTPConnection
-
     class UnixTransport(TransportMixIn, XMLTransport):
         def make_connection(self, host):
-            import httplib
-            host, extra_headers, x509 = self.get_host_info(host)
-            return UnixHTTP(host)
+            # Return an existing connection if possible.
+            if self._connection and host == self._connection[0]:
+                return self._connection[1]
+            host, nxtra_headers, x509 = self.get_host_info(host)
+            self._connection = host, UnixHTTPConnection()
+            return self._connection[1]
 
     
 class ServerProxy(XMLServerProxy):
@@ -193,11 +202,14 @@ class ServerProxy(XMLServerProxy):
 
     def __init__(self, uri, transport=None, encoding=None, 
                  verbose=0, version=None):
-        import urllib
+        if sys.version_info < (3,):
+            from urllib import splittype, splithost
+        else:
+            from urllib.parse import splittype, splithost
         if not version:
             version = config.version
         self.__version = version
-        schema, uri = urllib.splittype(uri)
+        schema, uri = splittype(uri)
         if schema not in ('http', 'https', 'unix'):
             raise IOError('Unsupported JSON-RPC protocol.')
         if schema == 'unix':
@@ -207,7 +219,7 @@ class ServerProxy(XMLServerProxy):
             self.__host = uri
             self.__handler = '/'
         else:
-            self.__host, self.__handler = urllib.splithost(uri)
+            self.__host, self.__handler = splithost(uri)
             if not self.__handler:
                 # Not sure if this is in the JSON spec?
                 #self.__handler = '/'
@@ -421,7 +433,7 @@ class Payload(dict):
         self.version = float(version)
     
     def request(self, method, params=[]):
-        if type(method) not in types.StringTypes:
+        if type(method) is not str:
             raise ValueError('Method name must be a string.')
         if not self.id:
             self.id = random_id()
@@ -465,8 +477,8 @@ def dumps(params=[], methodname=None, methodresponse=None,
     """
     if not version:
         version = config.version
-    valid_params = (types.TupleType, types.ListType, types.DictType)
-    if methodname in types.StringTypes and \
+    valid_params = [tuple, list, dict]
+    if methodname is str and \
             type(params) not in valid_params and \
             not isinstance(params, Fault):
         """ 
@@ -482,7 +494,7 @@ def dumps(params=[], methodname=None, methodresponse=None,
     if type(params) is Fault:
         response = payload.error(params.faultCode, params.faultString)
         return jdumps(response, encoding=encoding)
-    if type(methodname) not in types.StringTypes and methodresponse != True:
+    if type(methodname) is not str and methodresponse != True:
         raise ValueError('Method name must be a string, or methodresponse '+
                          'must be set to True.')
     if config.use_jsonclass == True:
@@ -522,7 +534,7 @@ def check_for_errors(result):
     if not result:
         # Notification
         return result
-    if type(result) is not types.DictType:
+    if type(result) is not dict:
         raise TypeError('Response is not a dict.')
     if 'jsonrpc' in result.keys() and float(result['jsonrpc']) > 2.0:
         raise NotImplementedError('JSON-RPC version not yet supported.')
@@ -535,11 +547,11 @@ def check_for_errors(result):
     return result
 
 def isbatch(result):
-    if type(result) not in (types.ListType, types.TupleType):
+    if type(result) not in (list, tuple):
         return False
     if len(result) < 1:
         return False
-    if type(result[0]) is not types.DictType:
+    if type(result[0]) is not dict:
         return False
     if 'jsonrpc' not in result[0].keys():
         return False

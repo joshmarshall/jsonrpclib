@@ -1,12 +1,21 @@
+from __future__ import print_function
+import sys
 import jsonrpclib
 from jsonrpclib import Fault
 from jsonrpclib.jsonrpc import USE_UNIX_SOCKETS
-import SimpleXMLRPCServer
-import SocketServer
+if sys.version_info < (3,):
+    from SimpleXMLRPCServer import SimpleXMLRPCDispatcher
+    from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
+    from SimpleXMLRPCServer import resolve_dotted_attribute
+    from SocketServer import TCPServer
+else:
+    from xmlrpc.server import SimpleXMLRPCDispatcher
+    from xmlrpc.server import SimpleXMLRPCRequestHandler
+    from xmlrpc.server import resolve_dotted_attribute
+    from socketserver import TCPServer
 import socket
 import logging
 import os
-import types
 import traceback
 import sys
 try:
@@ -24,7 +33,7 @@ def get_version(request):
     return None
     
 def validate_request(request):
-    if type(request) is not types.DictType:
+    if type(request) is not dict:
         fault = Fault(
             -32600, 'Request must be {}, not %s.' % type(request)
         )
@@ -37,8 +46,8 @@ def validate_request(request):
     request.setdefault('params', [])
     method = request.get('method', None)
     params = request.get('params')
-    param_types = (types.ListType, types.DictType, types.TupleType)
-    if not method or type(method) not in types.StringTypes or \
+    param_types = (list, dict, tuple)
+    if not method or type(method) not in str or \
         type(params) not in param_types:
         fault = Fault(
             -32600, 'Invalid request parameters or method.', rpcid=rpcid
@@ -46,25 +55,24 @@ def validate_request(request):
         return fault
     return True
 
-class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
+class SimpleJSONRPCDispatcher(SimpleXMLRPCDispatcher):
 
     def __init__(self, encoding=None):
-        SimpleXMLRPCServer.SimpleXMLRPCDispatcher.__init__(self,
-                                        allow_none=True,
+        SimpleXMLRPCDispatcher.__init__(self, allow_none=True,
                                         encoding=encoding)
 
     def _marshaled_dispatch(self, data, dispatch_method = None):
         response = None
         try:
             request = jsonrpclib.loads(data)
-        except Exception, e:
+        except Exception as e:
             fault = Fault(-32700, 'Request %s invalid. (%s)' % (data, e))
             response = fault.response()
             return response
         if not request:
             fault = Fault(-32600, 'Request invalid -- no request data.')
             return fault.response()
-        if type(request) is types.ListType:
+        if type(request) is list:
             # This SHOULD be a batch, by spec
             responses = []
             for req_entry in request:
@@ -123,7 +131,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
                     return self.instance._dispatch(method, params)
                 else:
                     try:
-                        func = SimpleXMLRPCServer.resolve_dotted_attribute(
+                        func = resolve_dotted_attribute(
                             self.instance,
                             method,
                             True
@@ -132,7 +140,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
                         pass
         if func is not None:
             try:
-                if type(params) is types.ListType:
+                if type(params) is list:
                     response = func(*params)
                 else:
                     response = func(**params)
@@ -148,8 +156,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
         else:
             return Fault(-32601, 'Method %s not supported.' % method)
 
-class SimpleJSONRPCRequestHandler(
-        SimpleXMLRPCServer.SimpleXMLRPCRequestHandler):
+class SimpleJSONRPCRequestHandler(SimpleXMLRPCRequestHandler):
     
     def do_POST(self):
         if not self.is_rpc_path_valid():
@@ -166,7 +173,7 @@ class SimpleJSONRPCRequestHandler(
             data = ''.join(L)
             response = self.server._marshaled_dispatch(data)
             self.send_response(200)
-        except Exception, e:
+        except Exception as e:
             self.send_response(500)
             err_lines = traceback.format_exc().splitlines()
             trace_string = '%s | %s' % (err_lines[-3], err_lines[-1])
@@ -181,7 +188,7 @@ class SimpleJSONRPCRequestHandler(
         self.wfile.flush()
         self.connection.shutdown(1)
 
-class SimpleJSONRPCServer(SocketServer.TCPServer, SimpleJSONRPCDispatcher):
+class SimpleJSONRPCServer(TCPServer, SimpleJSONRPCDispatcher):
 
     allow_reuse_address = True
 
@@ -205,9 +212,9 @@ class SimpleJSONRPCServer(SocketServer.TCPServer, SimpleJSONRPCDispatcher):
                     logging.warning("Could not unlink socket %s", addr)
         # if python 2.5 and lower
         if vi[0] < 3 and vi[1] < 6:
-            SocketServer.TCPServer.__init__(self, addr, requestHandler)
+            TCPServer.__init__(self, addr, requestHandler)
         else:
-            SocketServer.TCPServer.__init__(self, addr, requestHandler,
+            TCPServer.__init__(self, addr, requestHandler,
                 bind_and_activate)
         if fcntl is not None and hasattr(fcntl, 'FD_CLOEXEC'):
             flags = fcntl.fcntl(self.fileno(), fcntl.F_GETFD)
@@ -221,9 +228,9 @@ class CGIJSONRPCRequestHandler(SimpleJSONRPCDispatcher):
 
     def handle_jsonrpc(self, request_text):
         response = self._marshaled_dispatch(request_text)
-        print 'Content-Type: application/json-rpc'
-        print 'Content-Length: %d' % len(response)
-        print
+        print('Content-Type: application/json-rpc')
+        print('Content-Length: %d' % len(response))
+        print()
         sys.stdout.write(response)
 
     handle_xmlrpc = handle_jsonrpc
