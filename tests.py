@@ -34,7 +34,7 @@ except ImportError:
     import simplejson as json
 from threading import Thread
 
-PORTS = range(8000, 8999)
+PORTS = list(range(8000, 8999))
 
 class TestCompatibility(unittest.TestCase):
     
