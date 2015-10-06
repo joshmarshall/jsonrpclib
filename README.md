@@ -213,7 +213,8 @@ TESTS
 I've dropped almost-verbatim tests from the JSON-RPC spec 2.0 page.
 You can run it with:
 
-	python tests.py
+    pip install -r dev-requirements.txt
+    nosetests tests.py
 
 TODO
 ----
