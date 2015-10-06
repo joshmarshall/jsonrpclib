@@ -107,7 +107,9 @@ class TestCompatibility(unittest.TestCase):
         self.assertTrue(response == verify_response)
 
     def test_non_existent_method(self):
-        self.assertRaises(ProtocolError, self.client.foobar)
+        with self.assertRaises(ProtocolError):
+            self.client.foobar()
+
         request = json.loads(history.request)
         response = json.loads(history.response)
         verify_request = {
@@ -304,7 +306,8 @@ class InternalTests(unittest.TestCase):
 
     def test_single_kwargs_and_args(self):
         client = self.get_client()
-        self.assertRaises(ProtocolError, client.add, (5,), {'y': 10})
+        with self.assertRaises(ProtocolError):
+            client.add(5, y=10)
 
     def test_single_notify(self):
         client = self.get_client()
@@ -351,7 +354,8 @@ class InternalTests(unittest.TestCase):
             else:
                 def func():
                     return result[i]
-                self.assertRaises(raises[i], func)
+                with self.assertRaises(raises[i]):
+                    func()
 
 
 if jsonrpc.USE_UNIX_SOCKETS:
@@ -401,11 +405,8 @@ class UnixSocketErrorTests(unittest.TestCase):
 
     def test_client(self):
         address = "unix://shouldnt/work.sock"
-        self.assertRaises(
-            jsonrpc.UnixSocketMissing,
-            Server,
-            address
-        )
+        with self.assertRaises(jsonrpc.UnixSocketMissing):
+            Server(address)
 
     def tearDown(self):
         jsonrpc.USE_UNIX_SOCKETS = self.original_value
