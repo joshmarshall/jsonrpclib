@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/joshmarshall/jsonrpclib.svg)](https://travis-ci.org/joshmarshall/jsonrpclib)
+
 JSONRPClib
 ==========
 This library is an implementation of the JSON-RPC specification.
