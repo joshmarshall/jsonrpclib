@@ -25,13 +25,19 @@ from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
 from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCRequestHandler
 import socket
 import tempfile
-import unittest
+import sys
+
 import os
 try:
     import json
 except ImportError:
     import simplejson as json
 from threading import Thread
+
+if sys.version_info < (2, 7):
+    import unittest2 as unittest
+else:
+    import unittest
 
 PORTS = range(8000, 8999)
 
