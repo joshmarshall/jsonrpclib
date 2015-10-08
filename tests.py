@@ -4,11 +4,6 @@ to the JSON-RPC 2.0 specification document, as well as testing
 several internal components of the jsonrpclib library. Run this
 module without any parameters to run the tests.
 
-Currently, this is not easily tested with a framework like
-nosetests because we spin up a daemon thread running the
-the Server, and nosetests (at least in my tests) does not
-ever "kill" the thread.
-
 If you are testing jsonrpclib and the module doesn't return to
 the command prompt after running the tests, you can hit
 "Ctrl-C" (or "Ctrl-Break" on Windows) and that should kill it.
@@ -19,19 +14,15 @@ TODO:
 * Implement JSONClass, History, Config tests
 """
 
-from jsonrpclib import Server, MultiCall, history, ProtocolError
-from jsonrpclib import jsonrpc
-from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
-from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCRequestHandler
-import socket
-import tempfile
-import sys
 
-import os
 try:
     import json
 except ImportError:
     import simplejson as json
+import os
+import socket
+import sys
+import tempfile
 from threading import Thread
 
 if sys.version_info < (2, 7):
@@ -39,7 +30,16 @@ if sys.version_info < (2, 7):
 else:
     import unittest
 
-PORTS = range(8000, 8999)
+from jsonrpclib import Server, MultiCall, history, ProtocolError
+from jsonrpclib import jsonrpc
+from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
+from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCRequestHandler
+
+
+def get_port(family=socket.AF_INET):
+    sock = socket.socket(family, socket.SOCK_STREAM)
+    sock.bind(("localhost", 0))
+    return sock.getsockname()[1]
 
 
 class TestCompatibility(unittest.TestCase):
@@ -49,7 +49,7 @@ class TestCompatibility(unittest.TestCase):
     server = None
 
     def setUp(self):
-        self.port = PORTS.pop()
+        self.port = get_port()
         self.server = server_set_up(addr=('', self.port))
         self.client = Server('http://localhost:%d' % self.port)
 
@@ -279,7 +279,7 @@ class InternalTests(unittest.TestCase):
     port = None
 
     def setUp(self):
-        self.port = PORTS.pop()
+        self.port = get_port()
         self.server = server_set_up(addr=('', self.port))
 
     def get_client(self):
@@ -368,7 +368,7 @@ if jsonrpc.USE_UNIX_SOCKETS:
         but over a Unix socket instead of a TCP socket.
         """
         def setUp(self):
-            suffix = "%d.sock" % PORTS.pop()
+            suffix = "%d.sock" % get_port()
 
             # Open to safer, alternative processes
             # for getting a temp file name...
