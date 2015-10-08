@@ -357,6 +357,13 @@ class InternalTests(unittest.TestCase):
                 with self.assertRaises(raises[i]):
                     func()
 
+    def test_proxy_object_reuse_is_allowed(self):
+        client = self.get_client()
+        sub_service_proxy = client.sub_service
+        result = sub_service_proxy.subtract(5, 10)
+        self.assertTrue(result == -5)
+        result = sub_service_proxy.add(21, 21)
+        self.assertTrue(result == 42)
 
 if jsonrpc.USE_UNIX_SOCKETS:
     # We won't do these tests unless Unix Sockets are supported
@@ -412,36 +419,43 @@ class UnixSocketErrorTests(unittest.TestCase):
         jsonrpc.USE_UNIX_SOCKETS = self.original_value
 
 
-""" Test Methods """
+class ExampleService(object):
+    @staticmethod
+    def subtract(minuend, subtrahend):
+        """ Using the keywords from the JSON-RPC v2 doc """
+        return minuend-subtrahend
+
+    @staticmethod
+    def add(x, y):
+        return x + y
+
+    @staticmethod
+    def update(*args):
+        return args
+
+    @staticmethod
+    def summation(*args):
+        return sum(args)
+
+    @staticmethod
+    def notify_hello(*args):
+        return args
+
+    @staticmethod
+    def get_data():
+        return ['hello', 5]
+
+    @staticmethod
+    def ping():
+        return True
 
 
-def subtract(minuend, subtrahend):
-    """ Using the keywords from the JSON-RPC v2 doc """
-    return minuend-subtrahend
-
-
-def add(x, y):
-    return x + y
-
-
-def update(*args):
-    return args
-
-
-def summation(*args):
-    return sum(args)
-
-
-def notify_hello(*args):
-    return args
-
-
-def get_data():
-    return ['hello', 5]
-
-
-def ping():
-    return True
+class ExampleAggregateService(ExampleService):
+    """
+    Exposes the inherited ExampleService and a second copy as sub_service
+    """
+    def __init__(self):
+        self.sub_service = ExampleService()
 
 
 def server_set_up(addr, address_family=socket.AF_INET):
@@ -452,15 +466,13 @@ def server_set_up(addr, address_family=socket.AF_INET):
         pass
     SimpleJSONRPCRequestHandler.log_request = log_request
     server = SimpleJSONRPCServer(addr, address_family=address_family)
-    server.register_function(summation, 'sum')
-    server.register_function(summation, 'notify_sum')
-    server.register_function(notify_hello)
-    server.register_function(subtract)
-    server.register_function(update)
-    server.register_function(get_data)
-    server.register_function(add)
-    server.register_function(ping)
-    server.register_function(summation, 'namespace.sum')
+    service = ExampleAggregateService()
+    # Expose an instance of the service
+    server.register_instance(service, allow_dotted_names=True)
+    # Expose some aliases for service methods
+    server.register_function(service.summation, 'sum')
+    server.register_function(service.summation, 'notify_sum')
+    server.register_function(service.summation, 'namespace.sum')
     server_proc = Thread(target=server.serve_forever)
     server_proc.daemon = True
     server_proc.start()
