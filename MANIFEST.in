@@ -1,2 +1,2 @@
 include *.txt
-include MANIFEST.md
+include README.md
