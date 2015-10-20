@@ -2,11 +2,10 @@ language: python
 sudo: false
 python:
 - '2.7'
-- '2.6'
 install:
 - pip install -r dev-requirements.txt
 - pip install twine
-script: nosetests tests.py --with-coverage --cover-package=jsonrpclib
+script: tox
 deploy:
   provider: pypi
   user: joshmarshall
