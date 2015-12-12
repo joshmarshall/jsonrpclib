@@ -111,6 +111,9 @@ def jloads(json_string):
 
 class ProtocolError(Exception):
     pass
+class AppError(ProtocolError):
+    def data(self):
+        return self[0][2]
 
 
 class TransportMixIn(object):
@@ -564,7 +567,11 @@ def check_for_errors(result):
     if 'error' in result.keys() and result['error'] is not None:
         code = result['error']['code']
         message = result['error']['message']
-        raise ProtocolError((code, message))
+        if -32700 <= code <= -32000:
+            # pre-defined errors, see http://www.jsonrpc.org/specification#error_object
+            raise ProtocolError((code, message))
+        else:
+            raise AppError((code, message, result['error'].get('data', None)))
     return result
 
 
