@@ -36,6 +36,9 @@ from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
 from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCRequestHandler
 
 
+ORIGINAL_HISTORY_SIZE = history.size
+
+
 def get_port(family=socket.AF_INET):
     sock = socket.socket(family, socket.SOCK_STREAM)
     sock.bind(("localhost", 0))
@@ -281,6 +284,11 @@ class InternalTests(unittest.TestCase):
     def setUp(self):
         self.port = get_port()
         self.server = server_set_up(addr=('', self.port))
+        self.addCleanup(self.cleanup)
+
+    def cleanup(self):
+        history.size = ORIGINAL_HISTORY_SIZE
+        history.clear()
 
     def get_client(self):
         return Server('http://localhost:%d' % self.port)
@@ -330,6 +338,62 @@ class InternalTests(unittest.TestCase):
         verify_response['id'] = request['id']
         self.assertTrue(verify_request == request)
         self.assertTrue(verify_response == response)
+
+    def test_history_defaults_to_20(self):
+        client = self.get_client()
+        self.assertEqual(20, history.size)
+
+        for i in range(30):
+            client.namespace.sum(i, i)
+
+        self.assertEqual(20, len(history.requests))
+        self.assertEqual(20, len(history.responses))
+
+        verify_request = {
+            "jsonrpc": "2.0", "params": [29, 29],
+            "method": "namespace.sum"
+        }
+        verify_response = {"jsonrpc": "2.0", "result": 58}
+
+        # it should truncate to the *last* 20
+        request = json.loads(history.request)
+        response = json.loads(history.response)
+
+        verify_request["id"] = request["id"]
+        self.assertEqual(request, verify_request)
+
+        verify_response["id"] = request["id"]
+        self.assertEqual(response, verify_response)
+
+    def test_history_allows_configurable_size(self):
+        client = self.get_client()
+        history.size = 10
+
+        for i in range(30):
+            client.namespace.sum(i, i)
+
+        self.assertEqual(10, len(history.requests))
+        self.assertEqual(10, len(history.responses))
+
+    def test_history_allows_unlimited_size(self):
+        client = self.get_client()
+        history.size = -1
+
+        for i in range(40):
+            client.namespace.sum(i, i)
+
+        self.assertEqual(40, len(history.requests))
+        self.assertEqual(40, len(history.responses))
+
+    def test_history_can_be_disabled(self):
+        client = self.get_client()
+        history.size = 0
+
+        for i in range(40):
+            client.namespace.sum(i, i)
+
+        self.assertEqual(0, len(history.requests))
+        self.assertEqual(0, len(history.responses))
 
     def test_multicall_success(self):
         multicall = self.get_multicall_client()
