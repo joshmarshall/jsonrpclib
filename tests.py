@@ -365,6 +365,12 @@ class InternalTests(unittest.TestCase):
         result = sub_service_proxy.add(21, 21)
         self.assertTrue(result == 42)
 
+    def test_registered_by_register_api(self):
+        client = self.get_client()
+        result = client.echo(['hello, world'])
+        self.assertEqual(result, ['hello, world'])
+
+
 if jsonrpc.USE_UNIX_SOCKETS:
     # We won't do these tests unless Unix Sockets are supported
 
@@ -450,6 +456,13 @@ class ExampleService(object):
         return True
 
 
+class ExampleApi(object):
+
+    @staticmethod
+    def echo(args):
+        return args
+
+
 class ExampleAggregateService(ExampleService):
     """
     Exposes the inherited ExampleService and a second copy as sub_service
@@ -473,6 +486,8 @@ def server_set_up(addr, address_family=socket.AF_INET):
     server.register_function(service.summation, 'sum')
     server.register_function(service.summation, 'notify_sum')
     server.register_function(service.summation, 'namespace.sum')
+    example_api = ExampleApi()
+    server.register_api(example_api)
     server_proc = Thread(target=server.serve_forever)
     server_proc.daemon = True
     server_proc.start()
