@@ -218,6 +218,11 @@ class SimpleJSONRPCServer(SocketServer.TCPServer, SimpleJSONRPCDispatcher):
             flags |= fcntl.FD_CLOEXEC
             fcntl.fcntl(self.fileno(), fcntl.F_SETFD, flags)
 
+    def register_api(self, api_obj):
+        methods = dir(api_obj)
+        apis = filter(lambda m: not m.startswith('_'), methods)
+        [self.register_function(getattr(api_obj, api)) for api in apis]
+
 
 class CGIJSONRPCRequestHandler(SimpleJSONRPCDispatcher):
 
