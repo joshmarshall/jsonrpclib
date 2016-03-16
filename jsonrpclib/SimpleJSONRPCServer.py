@@ -164,7 +164,15 @@ class SimpleJSONRPCRequestHandler(
             L = []
             while size_remaining:
                 chunk_size = min(size_remaining, max_chunk_size)
-                L.append(self.rfile.read(chunk_size))
+                content_read = self.rfile.read(chunk_size)
+                if (content_read):
+                    L.append(content_read)
+                else:
+                    logging.warn("0 bytes was read from the socket "
+                                 "indicating the peer has performed a "
+                                 "shutdown. Close the socket and return.")
+                    self.connection.shutdown(1)
+                    return
                 size_remaining -= len(L[-1])
             data = ''.join(L)
             response = self.server._marshaled_dispatch(data)
