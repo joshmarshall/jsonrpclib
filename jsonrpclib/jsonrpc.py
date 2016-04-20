@@ -46,6 +46,7 @@ appropriately.
 See http://code.google.com/p/jsonrpclib/ for more info.
 """
 
+import sys
 import types
 from xmlrpclib import Transport as XMLTransport
 from xmlrpclib import SafeTransport as XMLSafeTransport
@@ -161,9 +162,12 @@ class Transport(TransportMixIn, XMLTransport):
 
 
 class SafeTransport(TransportMixIn, XMLSafeTransport):
-    def __init__(self):
+    def __init__(self, context=None):
         TransportMixIn.__init__(self)
-        XMLSafeTransport.__init__(self)
+        if sys.version_info < (2, 7, 9):
+            XMLSafeTransport.__init__(self)
+        else:
+            XMLSafeTransport.__init__(self, context=context)
 
 from httplib import HTTP, HTTPConnection
 from socket import socket
@@ -200,7 +204,7 @@ class ServerProxy(XMLServerProxy):
     """
 
     def __init__(self, uri, transport=None, encoding=None,
-                 verbose=0, version=None):
+                 verbose=0, version=None, context=None):
         import urllib
         if not version:
             version = config.version
@@ -224,7 +228,7 @@ class ServerProxy(XMLServerProxy):
             if schema == 'unix':
                 transport = UnixTransport()
             elif schema == 'https':
-                transport = SafeTransport()
+                transport = SafeTransport(context=context)
             else:
                 transport = Transport()
         self.__transport = transport
