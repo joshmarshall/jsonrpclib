@@ -63,17 +63,20 @@ cjson = None
 json = None
 try:
     import cjson
-except ImportError:
+except ImportError: 
+    pass
+
+try:
+    import json
+except ImportError: 
     try:
-        import json
-    except ImportError:
-        try:
-            import simplejson as json
-        except ImportError:
-            raise ImportError(
-                'You must have the cjson, json, or simplejson ' +
-                'module(s) available.'
-            )
+        import simplejson as json
+    except ImportError: 
+        raise ImportError(
+            'You must have the cjson, json, or simplejson ' +
+            'module(s) available.'
+        )
+
 
 IDCHARS = string.ascii_lowercase+string.digits
 
@@ -91,19 +94,17 @@ class UnixSocketMissing(Exception):
 
 def jdumps(obj, encoding='utf-8'):
     # Do 'serialize' test at some point for other classes
-    global cjson
-    if cjson:
+    if config.jsonLib == 'cjson':
         return cjson.encode(obj)
     else:
-        return json.dumps(obj, encoding=encoding)
+        return json.dumps(obj, encoding=encoding, **config.jsonDumpsKwargs)
 
 
 def jloads(json_string):
-    global cjson
-    if cjson:
+    if config.jsonLib == 'cjson':
         return cjson.decode(json_string)
     else:
-        return json.loads(json_string)
+        return json.loads(json_string, **config.jsonLoadsKwargs)
 
 
 # XMLRPClib re-implementations

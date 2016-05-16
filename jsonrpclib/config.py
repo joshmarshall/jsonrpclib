@@ -1,6 +1,5 @@
 import sys
 
-
 class LocalClasses(dict):
     def add(self, cls):
         self[cls.__name__] = cls
@@ -32,9 +31,41 @@ class Config(object):
         '.'.join([str(ver) for ver in sys.version_info[0:3]])
     # User agent to use for calls.
     _instance = None
+    # Which JSON library to use
+    jsonLib = None
+    # Parameters to use for json.loads
+    jsonLoadsKwargs={}
+    # Parameters to use for json.dumps
+    jsonDumpsKwargs={}
+
+    def __init__(self):
+        self.jsonLib = detectJsonLib()
+
 
     @classmethod
     def instance(cls):
         if not cls._instance:
             cls._instance = cls()
         return cls._instance
+
+
+def detectJsonLib():
+    try:
+        import cjson
+        return 'cjson'
+    except ImportError:
+        pass
+
+    try:
+        import json
+        return 'json'
+    except ImportError:
+        pass
+
+    try:
+        import simplejson
+        return 'simplejson'
+    except ImportError:
+        pass
+
+    return None
