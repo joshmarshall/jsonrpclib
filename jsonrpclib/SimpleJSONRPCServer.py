@@ -1,12 +1,15 @@
 import jsonrpclib
 from jsonrpclib import Fault
 from jsonrpclib.jsonrpc import USE_UNIX_SOCKETS
-import SimpleXMLRPCServer
-import SocketServer
+try:
+    import SimpleXMLRPCServer
+    import SocketServer
+except ImportError:
+    import xmlrpc.server as SimpleXMLRPCServer
+    import socketserver as SocketServer
 import socket
 import logging
 import os
-import types
 import traceback
 import sys
 try:
@@ -39,9 +42,8 @@ def validate_request(request):
     request.setdefault('params', [])
     method = request.get('method', None)
     params = request.get('params')
-    param_types = (types.ListType, types.DictType, types.TupleType)
-    if not method or type(method) not in types.StringTypes or \
-            type(params) not in param_types:
+    if not method or not isinstance(method, str) or \
+            not isinstance(params, (list, dict, tuple)):
         fault = Fault(
             -32600, 'Invalid request parameters or method.', rpcid=rpcid
         )
@@ -59,7 +61,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
         response = None
         try:
             request = jsonrpclib.loads(data)
-        except Exception, e:
+        except Exception as e:
             fault = Fault(-32700, 'Request %s invalid. (%s)' % (data, e))
             response = fault.response()
             return response
@@ -134,7 +136,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
                         pass
         if func is not None:
             try:
-                if isinstance(params, types.ListType):
+                if isinstance(params, list):
                     response = func(*params)
                 else:
                     response = func(**params)
@@ -164,12 +166,14 @@ class SimpleJSONRPCRequestHandler(
             L = []
             while size_remaining:
                 chunk_size = min(size_remaining, max_chunk_size)
-                L.append(self.rfile.read(chunk_size))
+                chunk = self.rfile.read(chunk_size).decode()
+                L.append(chunk)
                 size_remaining -= len(L[-1])
             data = ''.join(L)
             response = self.server._marshaled_dispatch(data)
             self.send_response(200)
-        except Exception:
+        except Exception as ex:
+            print('Exception in do_POST(): %s'%ex)
             self.send_response(500)
             err_lines = traceback.format_exc().splitlines()
             trace_string = '%s | %s' % (err_lines[-3], err_lines[-1])
@@ -180,7 +184,7 @@ class SimpleJSONRPCRequestHandler(
         self.send_header("Content-type", "application/json-rpc")
         self.send_header("Content-length", str(len(response)))
         self.end_headers()
-        self.wfile.write(response)
+        self.wfile.write(response.encode())
         self.wfile.flush()
         self.connection.shutdown(1)
 
@@ -218,7 +222,6 @@ class SimpleJSONRPCServer(SocketServer.TCPServer, SimpleJSONRPCDispatcher):
             flags |= fcntl.FD_CLOEXEC
             fcntl.fcntl(self.fileno(), fcntl.F_SETFD, flags)
 
-
 class CGIJSONRPCRequestHandler(SimpleJSONRPCDispatcher):
 
     def __init__(self, encoding=None):
@@ -226,9 +229,9 @@ class CGIJSONRPCRequestHandler(SimpleJSONRPCDispatcher):
 
     def handle_jsonrpc(self, request_text):
         response = self._marshaled_dispatch(request_text)
-        print 'Content-Type: application/json-rpc'
-        print 'Content-Length: %d' % len(response)
-        print
+        print( 'Content-Type: application/json-rpc' )
+        print( 'Content-Length: %d' % len(response) )
+        print()
         sys.stdout.write(response)
 
     handle_xmlrpc = handle_jsonrpc

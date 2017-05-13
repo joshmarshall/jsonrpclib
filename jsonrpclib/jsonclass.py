@@ -1,30 +1,16 @@
-import types
 import inspect
 import re
 
 from jsonrpclib import config
 
-iter_types = [
-    types.DictType,
-    types.ListType,
-    types.TupleType
-]
-
-string_types = [
-    types.StringType,
-    types.UnicodeType
-]
-
-numeric_types = [
-    types.IntType,
-    types.LongType,
-    types.FloatType
-]
-
-value_types = [
-    types.BooleanType,
-    types.NoneType
-]
+iter_types = (dict, list, tuple)
+value_types = (bool, )
+try:
+    string_types = (str, unicode)
+    numeric_types = (int, long, float)
+except NameError:
+    string_types = (str, )
+    numeric_types = (int, float)
 
 supported_types = iter_types+string_types+numeric_types+value_types
 invalid_module_chars = r'[^a-zA-Z0-9\_\.]'
@@ -39,23 +25,22 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
         serialize_method = config.serialize_method
     if not ignore_attribute:
         ignore_attribute = config.ignore_attribute
-    obj_type = type(obj)
     # Parse / return default "types"...
-    if obj_type in numeric_types+string_types+value_types:
+    if obj is None or isinstance(obj, numeric_types+string_types+value_types):
         return obj
-    if obj_type in iter_types:
-        if obj_type in (types.ListType, types.TupleType):
+    if isinstance(obj, iter_types):
+        if isinstance(obj, (list, tuple)):
             new_obj = []
             for item in obj:
                 new_obj.append(
                     dump(item, serialize_method, ignore_attribute, ignore))
-            if isinstance(obj_type, types.TupleType):
+            if isinstance(obj, tuple):
                 new_obj = tuple(new_obj)
             return new_obj
         # It's a dict...
         else:
             new_obj = {}
-            for key, value in obj.iteritems():
+            for key, value in obj.items():
                 new_obj[key] = dump(
                     value, serialize_method, ignore_attribute, ignore)
             return new_obj
@@ -81,7 +66,7 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
     return_obj['__jsonclass__'].append([])
     attrs = {}
     ignore_list = getattr(obj, ignore_attribute, [])+ignore
-    for attr_name, attr_value in obj.__dict__.iteritems():
+    for attr_name, attr_value in obj.__dict__.items():
         if type(attr_value) in supported_types and \
                 attr_name not in ignore_list and \
                 attr_value not in ignore_list:
@@ -92,7 +77,7 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
 
 
 def load(obj):
-    if type(obj) in string_types + numeric_types + value_types:
+    if obj is None or isinstance(obj, string_types + numeric_types + value_types):
         return obj
 
     if isinstance(obj, list):
@@ -103,7 +88,7 @@ def load(obj):
     # Othewise, it's a dict type
     if '__jsonclass__' not in obj:
         return_dict = {}
-        for key, value in obj.iteritems():
+        for key, value in obj.items():
             new_value = load(value)
             return_dict[key] = new_value
         return return_dict
@@ -148,7 +133,7 @@ def load(obj):
         new_obj = json_class(**params)
     else:
         raise TranslationError('Constructor args must be a dict or list.')
-    for key, value in obj.iteritems():
+    for key, value in obj.items():
         if key == '__jsonclass__':
             continue
         setattr(new_obj, key, value)

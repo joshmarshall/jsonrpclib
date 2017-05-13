@@ -46,11 +46,17 @@ appropriately.
 See http://code.google.com/p/jsonrpclib/ for more info.
 """
 
-import types
-from xmlrpclib import Transport as XMLTransport
-from xmlrpclib import SafeTransport as XMLSafeTransport
-from xmlrpclib import ServerProxy as XMLServerProxy
-from xmlrpclib import _Method as XML_Method
+try:
+    from xmlrpclib import Transport as XMLTransport
+    from xmlrpclib import SafeTransport as XMLSafeTransport
+    from xmlrpclib import ServerProxy as XMLServerProxy
+    from xmlrpclib import _Method as XML_Method
+except ImportError:
+    from xmlrpc.client import Transport as XMLTransport
+    from xmlrpc.client import SafeTransport as XMLSafeTransport
+    from xmlrpc.client import ServerProxy as XMLServerProxy
+    from xmlrpc.client import _Method as XML_Method
+    
 import string
 import random
 
@@ -95,7 +101,8 @@ def jdumps(obj, encoding='utf-8'):
     if cjson:
         return cjson.encode(obj)
     else:
-        return json.dumps(obj, encoding=encoding)
+#        return json.dumps(obj, encoding=encoding)
+        return json.dumps(obj)
 
 
 def jloads(json_string):
@@ -151,7 +158,7 @@ class JSONTarget(object):
         self.data.append(data)
 
     def close(self):
-        return ''.join(self.data)
+        return ''.join([d.decode() for d in self.data])
 
 
 class Transport(TransportMixIn, XMLTransport):
@@ -165,7 +172,10 @@ class SafeTransport(TransportMixIn, XMLSafeTransport):
         TransportMixIn.__init__(self)
         XMLSafeTransport.__init__(self)
 
-from httplib import HTTP, HTTPConnection
+try:
+    from httplib import HTTP, HTTPConnection
+except ImportError:
+    from http.client import HTTPConnection
 from socket import socket
 
 USE_UNIX_SOCKETS = False
@@ -201,11 +211,14 @@ class ServerProxy(XMLServerProxy):
 
     def __init__(self, uri, transport=None, encoding=None,
                  verbose=0, version=None):
-        import urllib
+        try:
+            from urllib.parse import splittype, splithost  # python 3.x
+        except ImportError:
+            from urllib import splittype, splithost
         if not version:
             version = config.version
         self.__version = version
-        schema, uri = urllib.splittype(uri)
+        schema, uri = splittype(uri)
         if schema not in ('http', 'https', 'unix'):
             raise IOError('Unsupported JSON-RPC protocol.')
         if schema == 'unix':
@@ -215,7 +228,7 @@ class ServerProxy(XMLServerProxy):
             self.__host = uri
             self.__handler = '/'
         else:
-            self.__host, self.__handler = urllib.splithost(uri)
+            self.__host, self.__handler = splithost(uri)
             if not self.__handler:
                 # Not sure if this is in the JSON spec?
                 # self.__handler = '/'
@@ -445,7 +458,7 @@ class Payload(dict):
         self.version = float(version)
 
     def request(self, method, params=[]):
-        if type(method) not in types.StringTypes:
+        if not isinstance(method, str):
             raise ValueError('Method name must be a string.')
         if not self.id:
             self.id = random_id()
@@ -491,9 +504,8 @@ def dumps(
     """
     if not version:
         version = config.version
-    valid_params = (types.TupleType, types.ListType, types.DictType)
-    if methodname in types.StringTypes and \
-            type(params) not in valid_params and \
+    if isinstance(methodname, str) and \
+            not isinstance(params, (tuple, list, dict)) and \
             not isinstance(params, Fault):
         """
         If a method, and params are not in a listish or a Fault,
@@ -505,11 +517,11 @@ def dumps(
     payload = Payload(rpcid=rpcid, version=version)
     if not encoding:
         encoding = 'utf-8'
-    if type(params) is Fault:
+    if isinstance(params, Fault):
         response = payload.error(params.faultCode, params.faultString)
         return jdumps(response, encoding=encoding)
 
-    if type(methodname) not in types.StringTypes and \
+    if not isinstance(methodname, str) and \
             methodresponse is not True:
         raise ValueError(
             'Method name must be a string, or methodresponse must '
@@ -569,7 +581,7 @@ def check_for_errors(result):
 
 
 def isbatch(result):
-    if type(result) not in (types.ListType, types.TupleType):
+    if not isinstance(result, (list, tuple)):
         return False
     if len(result) < 1:
         return False
