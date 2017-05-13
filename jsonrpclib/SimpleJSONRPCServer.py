@@ -10,6 +10,7 @@ except ImportError:
 import socket
 import logging
 import os
+import types
 import traceback
 import sys
 try:
