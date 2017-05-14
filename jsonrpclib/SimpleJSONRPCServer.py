@@ -10,7 +10,6 @@ except ImportError:
 import socket
 import logging
 import os
-import types
 import traceback
 import sys
 try:
@@ -18,6 +17,10 @@ try:
 except ImportError:
     # For Windows
     fcntl = None
+try:
+    string_types = (str, unicode)
+except NameError:
+    string_types = (str, )
 
 
 def get_version(request):
@@ -43,7 +46,7 @@ def validate_request(request):
     request.setdefault('params', [])
     method = request.get('method', None)
     params = request.get('params')
-    if not method or not isinstance(method, str) or \
+    if not method or not isinstance(method, string_types) or \
             not isinstance(params, (list, dict, tuple)):
         fault = Fault(
             -32600, 'Invalid request parameters or method.', rpcid=rpcid
