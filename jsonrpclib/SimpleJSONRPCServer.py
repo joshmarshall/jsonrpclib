@@ -2,11 +2,11 @@ import jsonrpclib
 from jsonrpclib import Fault
 from jsonrpclib.jsonrpc import USE_UNIX_SOCKETS
 try:
-    import SimpleXMLRPCServer
-    import SocketServer
-except ImportError:
-    import xmlrpc.server as SimpleXMLRPCServer
+    import xmlrpc.server as SimpleXMLRPCServer  # Python 3.x
     import socketserver as SocketServer
+except ImportError:
+    import SimpleXMLRPCServer  # Python 2.7
+    import SocketServer
 import socket
 import logging
 import os
@@ -17,11 +17,11 @@ try:
 except ImportError:
     # For Windows
     fcntl = None
-try:
-    string_types = (str, unicode)
-except NameError:
-    string_types = (str, )
 
+try:
+    basestring  # Python 2.7
+except NameError:
+    basestring = str  # Python 3.x
 
 def get_version(request):
     # must be a dict
@@ -46,7 +46,7 @@ def validate_request(request):
     request.setdefault('params', [])
     method = request.get('method', None)
     params = request.get('params')
-    if not method or not isinstance(method, string_types) or \
+    if not method or not isinstance(method, basestring) or \
             not isinstance(params, (list, dict, tuple)):
         fault = Fault(
             -32600, 'Invalid request parameters or method.', rpcid=rpcid
@@ -177,7 +177,6 @@ class SimpleJSONRPCRequestHandler(
             response = self.server._marshaled_dispatch(data)
             self.send_response(200)
         except Exception as ex:
-            print('Exception in do_POST(): %s'%ex)
             self.send_response(500)
             err_lines = traceback.format_exc().splitlines()
             trace_string = '%s | %s' % (err_lines[-3], err_lines[-1])

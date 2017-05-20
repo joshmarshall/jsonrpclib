@@ -6,10 +6,10 @@ from jsonrpclib import config
 iter_types = (dict, list, tuple)
 value_types = (bool, )
 try:
-    string_types = (str, unicode)
+    string_types = (basestring, )  # Python 2.7
     numeric_types = (int, long, float)
 except NameError:
-    string_types = (str, )
+    string_types = (str, ) # Python 3.x
     numeric_types = (int, float)
 
 supported_types = iter_types+string_types+numeric_types+value_types

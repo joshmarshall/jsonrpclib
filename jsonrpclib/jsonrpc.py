@@ -47,18 +47,26 @@ See http://code.google.com/p/jsonrpclib/ for more info.
 """
 
 try:
-    from xmlrpclib import Transport as XMLTransport
-    from xmlrpclib import SafeTransport as XMLSafeTransport
-    from xmlrpclib import ServerProxy as XMLServerProxy
-    from xmlrpclib import _Method as XML_Method
-except ImportError:
+    # Python 3.x
     from xmlrpc.client import Transport as XMLTransport
     from xmlrpc.client import SafeTransport as XMLSafeTransport
     from xmlrpc.client import ServerProxy as XMLServerProxy
     from xmlrpc.client import _Method as XML_Method
+except ImportError:
+    # Python 2.7
+    from xmlrpclib import Transport as XMLTransport
+    from xmlrpclib import SafeTransport as XMLSafeTransport
+    from xmlrpclib import ServerProxy as XMLServerProxy
+    from xmlrpclib import _Method as XML_Method
     
 import string
 import random
+
+try:
+    basestring  # Python 2.7
+except NameError:
+    basestring = str  # Python 3.x
+
 
 # Library includes
 from jsonrpclib import config
@@ -458,7 +466,7 @@ class Payload(dict):
         self.version = float(version)
 
     def request(self, method, params=[]):
-        if not isinstance(method, str):
+        if not isinstance(method, basestring):
             raise ValueError('Method name must be a string.')
         if not self.id:
             self.id = random_id()
