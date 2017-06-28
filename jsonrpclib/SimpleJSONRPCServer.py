@@ -187,7 +187,10 @@ class SimpleJSONRPCRequestHandler(
         self.send_header("Content-type", "application/json-rpc")
         self.send_header("Content-length", str(len(response)))
         self.end_headers()
-        self.wfile.write(response.encode())
+        if isinstance(response, bytes):
+            self.wfile.write(response)
+        else:
+            self.wfile.write(response.encode())
         self.wfile.flush()
         self.connection.shutdown(1)
 

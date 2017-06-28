@@ -181,7 +181,7 @@ class SafeTransport(TransportMixIn, XMLSafeTransport):
         XMLSafeTransport.__init__(self)
 
 try:
-    from httplib import HTTP, HTTPConnection
+    from httplib import HTTPConnection
 except ImportError:
     from http.client import HTTPConnection
 from socket import socket
@@ -201,14 +201,11 @@ if (USE_UNIX_SOCKETS):
             self.sock = socket(AF_UNIX, SOCK_STREAM)
             self.sock.connect(self.host)
 
-    class UnixHTTP(HTTP):
-        _connection_class = UnixHTTPConnection
-
     class UnixTransport(TransportMixIn, XMLTransport):
 
         def make_connection(self, host):
             host, extra_headers, x509 = self.get_host_info(host)
-            return UnixHTTP(host)
+            return UnixHTTPConnection(host)
 
 
 class ServerProxy(XMLServerProxy):
