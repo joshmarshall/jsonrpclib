@@ -1,0 +1,17 @@
+language: python
+sudo: false
+python:
+- '2.7'
+install:
+- pip install -r dev-requirements.txt
+- pip install twine
+script: tox
+deploy:
+  provider: pypi
+  user: joshmarshall
+  password:
+    secure: RbRcj7YdDXE9U2/a9yg4DW9UXFfrGWrM+S8uE8RgYu1D9njDDzUyNcFygaBXd8rxd8GpwRXHzSAO31B/Rk4NVbbM7JtcIA/52jx5j+4DdmEhffnzvahDkCZT6EV5iS3IxlShbuxgbzp3Qz14jF7Kl9iBSCOlIFItLCDlK7rfyJU=
+  on:
+    tags: true
+    repo: joshmarshall/jsonrpclib
+    branch: master

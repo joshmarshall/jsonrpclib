@@ -14,16 +14,22 @@ limitations under the License.
 """
 
 import distutils.core
+import os
+
+long_description = "Placeholder in case of missing README.md."
+
+if os.path.exists("README.md"):
+    with open("README.md") as readme_fp:
+        long_description = readme_fp.read()
 
 distutils.core.setup(
-    name = "jsonrpclib",
-    version = "0.1.3",
-    packages = ["jsonrpclib"],
-    author = "Josh Marshall",
-    author_email = "catchjosh@gmail.com",
-    url = "http://github.com/joshmarshall/jsonrpclib/",
-    license = "http://www.apache.org/licenses/LICENSE-2.0",
-    description = "This project is an implementation of the JSON-RPC v2.0 " +
-                  "specification (backwards-compatible) as a client library.",
-    long_description = open("README.md").read()
-)
+    name="jsonrpclib",
+    version="0.1.7",
+    packages=["jsonrpclib"],
+    author="Josh Marshall",
+    author_email="catchjosh@gmail.com",
+    url="http://github.com/joshmarshall/jsonrpclib/",
+    license="http://www.apache.org/licenses/LICENSE-2.0",
+    description="This project is an implementation of the JSON-RPC v2.0 " +
+        "specification (backwards-compatible) as a client library.",
+    long_description=long_description)
