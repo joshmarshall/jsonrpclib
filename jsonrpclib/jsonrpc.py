@@ -120,7 +120,14 @@ class TransportMixIn(object):
     _connection = (None, None)
     _extra_headers = []
 
+    def set_basic_auth(self, user, password):
+        import base64
+        self.__auth = 'Basic %s' % (base64.b64encode('%s:%s' % (user, password)))
+
     def send_content(self, connection, request_body):
+        if self.__auth != None :
+            connection.putheader("Authorization", self.__auth)
+
         connection.putheader("Content-Type", "application/json-rpc")
         connection.putheader("Content-Length", str(len(request_body)))
         connection.endheaders()
@@ -200,7 +207,7 @@ class ServerProxy(XMLServerProxy):
     """
 
     def __init__(self, uri, transport=None, encoding=None,
-                 verbose=0, version=None):
+                 verbose=0, version=None, user=None, password=None):
         import urllib
         if not version:
             version = config.version
@@ -227,6 +234,8 @@ class ServerProxy(XMLServerProxy):
                 transport = SafeTransport()
             else:
                 transport = Transport()
+        if user != None and password != None:
+            transport.set_basic_auth(user, password)
         self.__transport = transport
         self.__encoding = encoding
         self.__verbose = verbose
