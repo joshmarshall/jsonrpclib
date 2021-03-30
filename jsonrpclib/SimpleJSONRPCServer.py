@@ -189,6 +189,11 @@ class SimpleJSONRPCRequestHandler(
         self.connection.shutdown(1)
 
 
+class SimpleJSONRPCUnixRequestHandler(SimpleJSONRPCRequestHandler):
+
+    disable_nagle_algorithm = False
+
+
 class SimpleJSONRPCServer(socketserver.TCPServer, SimpleJSONRPCDispatcher):
 
     allow_reuse_address = True
@@ -209,6 +214,9 @@ class SimpleJSONRPCServer(socketserver.TCPServer, SimpleJSONRPCDispatcher):
                     os.unlink(addr)
                 except OSError:
                     logging.warning("Could not unlink socket %s", addr)
+
+            if requestHandler == SimpleJSONRPCRequestHandler:
+                requestHandler = SimpleJSONRPCUnixRequestHandler
 
         socketserver.TCPServer.__init__(
             self, addr, requestHandler, bind_and_activate)
