@@ -5,6 +5,7 @@ class History(object):
     each request cycle in order to keep it from clogging
     memory.
     """
+    size = 20
     requests = []
     responses = []
     _instance = None
@@ -16,10 +17,18 @@ class History(object):
         return cls._instance
 
     def add_response(self, response_obj):
+        if self.size == 0:
+            return
         self.responses.append(response_obj)
+        if self.size > 0:
+            self.responses = self.responses[0 - self.size:]
 
     def add_request(self, request_obj):
+        if self.size == 0:
+            return
         self.requests.append(request_obj)
+        if self.size > 0:
+            self.requests = self.requests[0 - self.size:]
 
     @property
     def request(self):
