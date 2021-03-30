@@ -9,7 +9,9 @@ jobs:
     steps:
       - checkout
       - python/load-cache
-      - python/install-deps
+      - run:
+          name: Install dev dependencies
+          command: pip3 install -r dev-requirements.txt
       - run:
           name: Install CI dependencies
           command: pip3 install tox twine
