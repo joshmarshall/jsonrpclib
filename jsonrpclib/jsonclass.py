@@ -5,12 +5,8 @@ from jsonrpclib import config
 
 iter_types = (dict, list, tuple)
 value_types = (bool, )
-try:
-    string_types = (basestring, )  # Python 2.7
-    numeric_types = (int, long, float)
-except NameError:
-    string_types = (str, ) # Python 3.x
-    numeric_types = (int, float)
+string_types = (str, )
+numeric_types = (int, float)
 
 supported_types = iter_types+string_types+numeric_types+value_types
 invalid_module_chars = r'[^a-zA-Z0-9\_\.]'
@@ -77,7 +73,8 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=[]):
 
 
 def load(obj):
-    if obj is None or isinstance(obj, string_types + numeric_types + value_types):
+    if obj is None or isinstance(
+            obj, string_types + numeric_types + value_types):
         return obj
 
     if isinstance(obj, list):

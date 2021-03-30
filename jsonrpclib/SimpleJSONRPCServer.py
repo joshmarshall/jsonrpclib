@@ -1,27 +1,21 @@
-import jsonrpclib
-from jsonrpclib import Fault
-from jsonrpclib.jsonrpc import USE_UNIX_SOCKETS
-try:
-    import xmlrpc.server as SimpleXMLRPCServer  # Python 3.x
-    import socketserver as SocketServer
-except ImportError:
-    import SimpleXMLRPCServer  # Python 2.7
-    import SocketServer
-import socket
 import logging
 import os
-import traceback
+import socket
+import socketserver
 import sys
+import traceback
+import xmlrpc.server
+
 try:
     import fcntl
 except ImportError:
     # For Windows
     fcntl = None
 
-try:
-    basestring  # Python 2.7
-except NameError:
-    basestring = str  # Python 3.x
+import jsonrpclib
+from jsonrpclib import Fault
+from jsonrpclib.jsonrpc import USE_UNIX_SOCKETS
+
 
 def get_version(request):
     # must be a dict
@@ -46,7 +40,7 @@ def validate_request(request):
     request.setdefault('params', [])
     method = request.get('method', None)
     params = request.get('params')
-    if not method or not isinstance(method, basestring) or \
+    if not method or not isinstance(method, str) or \
             not isinstance(params, (list, dict, tuple)):
         fault = Fault(
             -32600, 'Invalid request parameters or method.', rpcid=rpcid
@@ -55,10 +49,10 @@ def validate_request(request):
     return True
 
 
-class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
+class SimpleJSONRPCDispatcher(xmlrpc.server.SimpleXMLRPCDispatcher):
 
     def __init__(self, encoding=None):
-        SimpleXMLRPCServer.SimpleXMLRPCDispatcher.__init__(
+        xmlrpc.server.SimpleXMLRPCDispatcher.__init__(
             self, allow_none=True, encoding=encoding)
 
     def _marshaled_dispatch(self, data, dispatch_method=None):
@@ -103,7 +97,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
         params = request.get('params')
         try:
             response = self._dispatch(method, params)
-        except:
+        except Exception:
             exc_type, exc_value, exc_tb = sys.exc_info()
             fault = Fault(-32603, '%s:%s' % (exc_type, exc_value))
             return fault.response()
@@ -116,7 +110,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
                                         rpcid=request['id']
                                         )
             return response
-        except:
+        except Exception:
             exc_type, exc_value, exc_tb = sys.exc_info()
             fault = Fault(-32603, '%s:%s' % (exc_type, exc_value))
             return fault.response()
@@ -131,7 +125,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
                     return self.instance._dispatch(method, params)
                 else:
                     try:
-                        func = SimpleXMLRPCServer.resolve_dotted_attribute(
+                        func = xmlrpc.server.resolve_dotted_attribute(
                             self.instance,
                             method,
                             True
@@ -147,7 +141,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
                 return response
             # except TypeError:
             #     return Fault(-32602, 'Invalid parameters.')
-            except:
+            except Exception:
                 err_lines = traceback.format_exc().splitlines()
                 trace_string = '%s | %s' % (err_lines[-3], err_lines[-1])
                 fault = jsonrpclib.Fault(-32603, 'Server error: %s' %
@@ -158,7 +152,7 @@ class SimpleJSONRPCDispatcher(SimpleXMLRPCServer.SimpleXMLRPCDispatcher):
 
 
 class SimpleJSONRPCRequestHandler(
-        SimpleXMLRPCServer.SimpleXMLRPCRequestHandler):
+        xmlrpc.server.SimpleXMLRPCRequestHandler):
 
     def do_POST(self):
         if not self.is_rpc_path_valid():
@@ -176,7 +170,7 @@ class SimpleJSONRPCRequestHandler(
             data = ''.join(L)
             response = self.server._marshaled_dispatch(data)
             self.send_response(200)
-        except Exception as ex:
+        except Exception:
             self.send_response(500)
             err_lines = traceback.format_exc().splitlines()
             trace_string = '%s | %s' % (err_lines[-3], err_lines[-1])
@@ -195,7 +189,7 @@ class SimpleJSONRPCRequestHandler(
         self.connection.shutdown(1)
 
 
-class SimpleJSONRPCServer(SocketServer.TCPServer, SimpleJSONRPCDispatcher):
+class SimpleJSONRPCServer(socketserver.TCPServer, SimpleJSONRPCDispatcher):
 
     allow_reuse_address = True
 
@@ -204,10 +198,8 @@ class SimpleJSONRPCServer(SocketServer.TCPServer, SimpleJSONRPCDispatcher):
                  address_family=socket.AF_INET):
         self.logRequests = logRequests
         SimpleJSONRPCDispatcher.__init__(self, encoding)
-        # TCPServer.__init__ has an extra parameter on 2.6+, so
-        # check Python version and decide on how to call it
-        vi = sys.version_info
         self.address_family = address_family
+
         if USE_UNIX_SOCKETS and address_family == socket.AF_UNIX:
             # Unix sockets can't be bound if they already exist in the
             # filesystem. The convention of e.g. X11 is to unlink
@@ -217,16 +209,14 @@ class SimpleJSONRPCServer(SocketServer.TCPServer, SimpleJSONRPCDispatcher):
                     os.unlink(addr)
                 except OSError:
                     logging.warning("Could not unlink socket %s", addr)
-        # if python 2.5 and lower
-        if vi[0] < 3 and vi[1] < 6:
-            SocketServer.TCPServer.__init__(self, addr, requestHandler)
-        else:
-            SocketServer.TCPServer.__init__(
-                self, addr, requestHandler, bind_and_activate)
+
+        socketserver.TCPServer.__init__(
+            self, addr, requestHandler, bind_and_activate)
         if fcntl is not None and hasattr(fcntl, 'FD_CLOEXEC'):
             flags = fcntl.fcntl(self.fileno(), fcntl.F_GETFD)
             flags |= fcntl.FD_CLOEXEC
             fcntl.fcntl(self.fileno(), fcntl.F_SETFD, flags)
+
 
 class CGIJSONRPCRequestHandler(SimpleJSONRPCDispatcher):
 
@@ -235,8 +225,8 @@ class CGIJSONRPCRequestHandler(SimpleJSONRPCDispatcher):
 
     def handle_jsonrpc(self, request_text):
         response = self._marshaled_dispatch(request_text)
-        print( 'Content-Type: application/json-rpc' )
-        print( 'Content-Length: %d' % len(response) )
+        print('Content-Type: application/json-rpc')
+        print('Content-Length: %d' % len(response))
         print()
         sys.stdout.write(response)
 

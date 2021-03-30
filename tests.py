@@ -56,6 +56,10 @@ class TestCompatibility(unittest.TestCase):
         self.server = server_set_up(addr=('', self.port))
         self.client = Server('http://localhost:%d' % self.port)
 
+    def tearDown(self):
+        self.server.stop()
+        self.server.join()
+
     # v1 tests forthcoming
 
     # Version 2.0 Tests
@@ -287,6 +291,8 @@ class InternalTests(unittest.TestCase):
         self.addCleanup(self.cleanup)
 
     def cleanup(self):
+        self.server.stop()
+        self.server.join()
         history.size = ORIGINAL_HISTORY_SIZE
         history.clear()
 
@@ -429,37 +435,40 @@ class InternalTests(unittest.TestCase):
         result = sub_service_proxy.add(21, 21)
         self.assertTrue(result == 42)
 
-if jsonrpc.USE_UNIX_SOCKETS:
-    # We won't do these tests unless Unix Sockets are supported
 
-    @unittest.skip("Skipping Unix socket tests right now.")
-    class UnixSocketInternalTests(InternalTests):
-        """
-        These tests run the same internal communication tests,
-        but over a Unix socket instead of a TCP socket.
-        """
-        def setUp(self):
-            suffix = "%d.sock" % get_port()
+@unittest.skipIf(
+    not jsonrpc.USE_UNIX_SOCKETS or "SKIP_UNIX_SOCKET_TESTS" in os.environ,
+    "Skipping Unix socket tests -- unsupported in this environment.")
+class UnixSocketInternalTests(InternalTests):
+    """
+    These tests run the same internal communication tests,
+    but over a Unix socket instead of a TCP socket.
+    """
+    def setUp(self):
+        suffix = "%d.sock" % get_port()
 
-            # Open to safer, alternative processes
-            # for getting a temp file name...
-            temp = tempfile.NamedTemporaryFile(
-                suffix=suffix
-            )
-            self.port = temp.name
-            temp.close()
+        # Open to safer, alternative processes
+        # for getting a temp file name...
+        temp = tempfile.NamedTemporaryFile(
+            suffix=suffix
+        )
+        self.port = temp.name
+        temp.close()
 
-            self.server = server_set_up(
-                addr=self.port,
-                address_family=socket.AF_UNIX
-            )
+        self.server = server_set_up(
+            addr=self.port,
+            address_family=socket.AF_UNIX
+        )
 
-        def get_client(self):
-            return Server('unix:/%s' % self.port)
+    def get_client(self):
+        print(f"Serving on {self.port}")
+        return Server('unix:/%s' % self.port)
 
-        def tearDown(self):
-            """ Removes the tempory socket file """
-            os.unlink(self.port)
+    def tearDown(self):
+        """ Removes the tempory socket file """
+        self.server.stop()
+        self.server.join()
+        os.unlink(self.port)
 
 
 class UnixSocketErrorTests(unittest.TestCase):
@@ -537,7 +546,11 @@ def server_set_up(addr, address_family=socket.AF_INET):
     server.register_function(service.summation, 'sum')
     server.register_function(service.summation, 'notify_sum')
     server.register_function(service.summation, 'namespace.sum')
+
+    def stop():
+        server.shutdown()
+
     server_proc = Thread(target=server.serve_forever)
-    server_proc.daemon = True
+    server_proc.stop = stop
     server_proc.start()
     return server_proc
