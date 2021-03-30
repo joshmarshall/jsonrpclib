@@ -1,0 +1,28 @@
+version: 2.1
+
+orbs:
+  python: circleci/python@0.2.1
+
+jobs:
+  build-and-test:
+    executor: python/default
+    steps:
+      - checkout
+      - python/load-cache
+      - python/install-deps
+      - run:
+          name: Install CI dependencies
+          command: pip3 install tox twine
+      - python/save-cache
+      - run:
+          command: flake8
+          name: Flake8 / linting
+      - run:
+          command: tox
+          name: Run package tests across all python variants
+
+workflows:
+  main:
+    jobs:
+      - build-and-test
+
