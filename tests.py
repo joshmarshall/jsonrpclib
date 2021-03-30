@@ -330,7 +330,10 @@ class InternalTests(unittest.TestCase):
 
     def test_single_namespace(self):
         client = self.get_client()
+
         response = client.namespace.sum(1, 2, 4)
+        self.assertEqual(7, response)
+
         request = json.loads(history.request)
         response = json.loads(history.response)
         verify_request = {
@@ -342,8 +345,8 @@ class InternalTests(unittest.TestCase):
         }
         verify_request['id'] = request['id']
         verify_response['id'] = request['id']
-        self.assertTrue(verify_request == request)
-        self.assertTrue(verify_response == response)
+        self.assertEqual(verify_request, request)
+        self.assertEqual(verify_response, response)
 
     def test_history_defaults_to_20(self):
         client = self.get_client()
@@ -445,6 +448,7 @@ class UnixSocketInternalTests(InternalTests):
     but over a Unix socket instead of a TCP socket.
     """
     def setUp(self):
+        super().setUp()
         suffix = "%d.sock" % get_port()
 
         # Open to safer, alternative processes
@@ -461,7 +465,6 @@ class UnixSocketInternalTests(InternalTests):
         )
 
     def get_client(self):
-        print("Serving on {}".format(self.port))
         return Server('unix:/%s' % self.port)
 
     def tearDown(self):
@@ -551,6 +554,7 @@ def server_set_up(addr, address_family=socket.AF_INET):
         server.shutdown()
 
     server_proc = Thread(target=server.serve_forever)
+    server_proc.daemon = True
     server_proc.stop = stop
     server_proc.start()
     return server_proc
