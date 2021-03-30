@@ -15,9 +15,11 @@ jobs:
       - run:
           name: Install CI dependencies
           command: pip3 install tox twine tox-pyenv
-      - run:
-          name: Install Python versions
-          command: pyenv install --skip-existing 3.5-dev 3.6-dev 3.7-dev 3.8-dev 3.9-dev
+      - run: pyenv install --skip-existing 3.5-dev
+      - run: pyenv install --skip-existing 3.6-dev
+      - run: pyenv install --skip-existing 3.7-dev
+      - run: pyenv install --skip-existing 3.8-dev
+      - run: pyenv install --skip-existing 3.9-dev
       - run:
           name: Set local Python versions
           command: pyenv local 3.5-dev 3.6-dev 3.7-dev 3.8-dev 3.9-dev
