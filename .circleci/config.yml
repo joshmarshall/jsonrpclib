@@ -22,7 +22,7 @@ jobs:
       - run: pyenv install --skip-existing 3.9-dev
       - run:
           name: Set local Python versions
-          command: pyenv local 3.5-dev 3.6-dev 3.7-dev 3.8-dev 3.9-dev
+          command: pyenv local 3.5-dev 3.6-dev 3.7-dev 3.8-dev 3.9-dev 3.9.2
       - save_cache:
           key: dev-cache-{{ checksum dev-requirements.txt }}
           paths:
