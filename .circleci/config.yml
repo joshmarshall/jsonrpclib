@@ -8,14 +8,26 @@ jobs:
     executor: python/default
     steps:
       - checkout
-      - python/load-cache
+      - restore_cache:
+          keys:
+            - dev-cache-{{ checksum dev-requirements.txt }}
       - run:
           name: Install dev dependencies
           command: pip3 install -r dev-requirements.txt
       - run:
           name: Install CI dependencies
-          command: pip3 install tox twine
-      - python/save-cache
+          command: pip3 install tox twine tox-pyenv
+      - run:
+          name: Install Python versions
+          command: pyenv install --skip-existing 3.5-dev 3.6-dev 3.7-dev 3.8-dev 3.9-dev
+      - run:
+          name: Set local Python versions
+          command: pyenv local 3.5-dev 3.6-dev 3.7-dev 3.8-dev 3.9-dev
+      - save_cache:
+          key:
+            - dev-cache-{{ checksum dev-requirements.txt }}
+          paths:
+            - ~/.pyenv
       - run:
           command: flake8
           name: Flake8 / linting
