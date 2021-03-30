@@ -461,7 +461,7 @@ class UnixSocketInternalTests(InternalTests):
         )
 
     def get_client(self):
-        print(f"Serving on {self.port}")
+        print("Serving on {}".format(self.port))
         return Server('unix:/%s' % self.port)
 
     def tearDown(self):
