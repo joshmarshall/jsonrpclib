@@ -38,6 +38,11 @@ jobs:
           name: Run package tests across all python variants
       - store_test_results:
           path: reports
+      - run:
+          command: python3 setup.py sdist
+          name: Build source distribution
+      - store_artifacts:
+          path: ./dist
 
 workflows:
   main:
