@@ -36,6 +36,9 @@ jobs:
       - store_test_results:
           path: reports
       - run:
+          command: pip install build
+          name: Install build dependency
+      - run:
           command: python3 -m build
           name: Build source distribution
       - store_artifacts:
