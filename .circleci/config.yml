@@ -26,7 +26,10 @@ jobs:
       - save_cache:
           key: dev-cache-{{ checksum "dev-requirements.txt" }}-{{ checksum "tox.ini" }}
           paths:
-            - ~/.pyenv
+            - /home/circleci/.cache/pip
+            - /home/circleci/.pyenv/versions/
+            - /home/circleci/.local/lib/
+
       - run:
           command: flake8
           name: Flake8 / linting
