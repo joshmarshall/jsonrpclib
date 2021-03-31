@@ -32,4 +32,5 @@ distutils.core.setup(
     license="http://www.apache.org/licenses/LICENSE-2.0",
     description="This project is an implementation of the JSON-RPC v2.0 " +
         "specification (backwards-compatible) as a client library.",
-    long_description=long_description)
+    long_description=long_description,
+    long_description_content_type="text/markdown")
