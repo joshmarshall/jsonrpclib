@@ -1,4 +1,5 @@
-[![Build Status](https://travis-ci.org/joshmarshall/jsonrpclib.svg)](https://travis-ci.org/joshmarshall/jsonrpclib)
+[![Build Status](https://circleci.com/gh/joshmarshall/jsonrpclib.svg?style=svg)](https://circleci.com/gh/joshmarshall/jsonrpclib)
+
 
 JSONRPClib
 ==========
