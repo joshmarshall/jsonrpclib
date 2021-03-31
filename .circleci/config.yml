@@ -33,6 +33,8 @@ jobs:
       - run:
           command: tox
           name: Run package tests across all python variants
+      - store_test_results:
+          path: reports
 
 workflows:
   main:
