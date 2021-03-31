@@ -14,7 +14,7 @@ jobs:
           command: pip3 install -r dev-requirements.txt
       - run:
           name: Install CI dependencies
-          command: pip3 install tox twine tox-pyenv
+          command: pip3 install tox twine tox-pyenv build
       - run: pyenv install --skip-existing 3.5-dev
       - run: pyenv install --skip-existing 3.6-dev
       - run: pyenv install --skip-existing 3.7-dev
@@ -39,7 +39,7 @@ jobs:
       - store_test_results:
           path: reports
       - run:
-          command: python3 setup.py sdist
+          command: python3 -m build
           name: Build source distribution
       - store_artifacts:
           path: ./dist
