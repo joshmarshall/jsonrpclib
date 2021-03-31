@@ -24,7 +24,7 @@ if os.path.exists("README.md"):
 
 distutils.core.setup(
     name="jsonrpclib",
-    version="0.2.0",
+    version="0.2.1",
     packages=["jsonrpclib"],
     author="Josh Marshall",
     author_email="catchjosh@gmail.com",
