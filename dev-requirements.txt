@@ -1,3 +1,7 @@
+build
 coverage
 flake8
 pytest
+tox
+tox-pyenv
+twine
