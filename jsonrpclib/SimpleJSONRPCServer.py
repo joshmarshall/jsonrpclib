@@ -106,6 +106,7 @@ class SimpleJSONRPCDispatcher(xmlrpc.server.SimpleXMLRPCDispatcher):
             return None
         try:
             response = jsonrpclib.dumps(response,
+                                        version=get_version(request),
                                         methodresponse=True,
                                         rpcid=request['id']
                                         )
